@@ -1,0 +1,16 @@
+services:
+  
+  spark:
+    image: bitnamilegacy/spark:4.0.0-debian-12-r20
+    environment:
+      - SPARK_MODE=master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+
+  fuseki:
+    image: stain/jena-fuseki:latest
+    ports:
+      - "3030:3030"
+    environment:
+      - ADMIN_PASSWORD=admin

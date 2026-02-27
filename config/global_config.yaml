@@ -1,0 +1,9 @@
+# Configurazione Globale - Pipeline Ψ-Risk-DT
+
+reproducibility:
+  global_seed: 42
+
+entropy_axis:
+  window_size_dt: 50         # Dimensione della sliding window |∆t|
+  threshold_h: 1.15          # Soglia motivata θH per il gating
+  baseline_samples: 200      # Campioni usati per calcolare la media di base

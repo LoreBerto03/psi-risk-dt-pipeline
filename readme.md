@@ -5,7 +5,7 @@ Questo repository contiene l'implementazione ufficiale del framework **Ψ-Risk-D
 
 ---
 
-## 🚀 Quickstart (Riproduzione in 4 step)
+## Quickstart (Riproduzione in 4 step)
 
 Assicurati di avere **Docker** e **Docker Compose** installati.
 
