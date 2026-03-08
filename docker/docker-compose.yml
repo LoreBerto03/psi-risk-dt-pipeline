@@ -1,16 +1,60 @@
 services:
-  
   spark:
     image: bitnamilegacy/spark:4.0.0-debian-12-r20
+    container_name: psi-spark
     environment:
       - SPARK_MODE=master
     ports:
       - "8080:8080"
       - "7077:7077"
 
+  spark-worker:
+    image: bitnamilegacy/spark:4.0.0-debian-12-r20
+    container_name: psi-spark-worker
+    depends_on:
+      - spark
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=1
+
   fuseki:
     image: stain/jena-fuseki:latest
+    container_name: psi-fuseki
     ports:
       - "3030:3030"
     environment:
       - ADMIN_PASSWORD=admin
+    volumes:
+      - fuseki_data:/fuseki
+
+  pipeline:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: psi-pipeline
+    working_dir: /app
+    volumes:
+      - ..:/app
+    depends_on:
+      - spark
+      - spark-worker
+      - fuseki
+    environment:
+      - USE_SPARK=1
+      - USE_FUSEKI=1
+      - SPARK_MASTER_URL=spark://spark:7077
+      - FUSEKI_BASE_URL=http://fuseki:3030
+      - FUSEKI_DATASET=psi-risk
+      - FUSEKI_ADMIN_PASSWORD=admin
+      - DATA_SOURCE=fuseki
+      - PLOT_WINDOW_SIZE=100
+    command: >
+      bash -c "
+      chmod +x /app/run_all.sh &&
+      /app/run_all.sh
+      "
+
+volumes:
+  fuseki_data:

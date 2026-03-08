@@ -1,23 +1,35 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "========================================================="
-echo "  Avvio Pipeline Riproducibile Ψ-Risk-DT"
-echo "========================================================="
+COMPOSE_FILE="docker/docker-compose.yml"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "[1/4] Creazione alberatura risultati..."
-mkdir -p results/figures results/tables
+cd "$PROJECT_DIR"
 
-echo "[2/4] Avvio ambiente Docker (Spark + Fuseki)..."
-docker compose -f docker/docker-compose.yml up -d
-sleep 10 # Attesa tecnica per il boot dei servizi
+cleanup() {
+  echo
+  echo "[CLEANUP] Arresto stack Docker..."
+  docker compose -f "$COMPOSE_FILE" down
+}
 
-echo "[3/4] Esecuzione Asse 1: Calcolo Entropia e ∆H..."
-python3 scripts/entropy_engine.py
+trap cleanup EXIT
 
-echo "[4/4] Spegnimento pulito dell'ambiente..."
-docker compose -f docker/docker-compose.yml down
+echo "[1/5] Avvio servizi Docker..."
+docker compose -f "$COMPOSE_FILE" up -d spark spark-worker fuseki
 
-echo "========================================================="
-echo " Pipeline completata! Controlla la cartella /results"
-echo "========================================================="
+echo "[2/5] Attesa Fuseki..."
+until curl -s http://localhost:3030/\$/ping >/dev/null; do
+  sleep 2
+done
+echo "[OK] Fuseki pronto"
+
+echo "[3/5] Calcolo entropia + sliding window..."
+docker compose -f "$COMPOSE_FILE" run --rm pipeline python 03_Sliding_window/sliding_window.py
+
+echo "[4/5] Generazione grafici..."
+docker compose -f "$COMPOSE_FILE" run --rm pipeline python 04_Analisi_grafici/plot_entropy.py
+
+echo "[5/5] Output generati:"
+ls -lah 05_Risultati/figures || true
+
+echo "[OK] Pipeline completata"

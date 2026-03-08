@@ -1,3 +1,65 @@
-/results/**
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
 
-/.venv/**
+# Virtual environment
+.venv/
+venv/
+env/
+
+# =========================
+# IDE / Editor
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Logs / temp
+# =========================
+*.log
+*.tmp
+*.temp
+
+# =========================
+# Build / test / cache
+# =========================
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# =========================
+# Docker local leftovers
+# =========================
+*.pid
+
+# =========================
+# Generated project outputs
+# =========================
+05_Risultati/figures/
+05_Risultati/tables/
+artifacts/
+
+# =========================
+# Generated seed / local import files
+# =========================
+psi_risk_seed.ttl
+psi_risk_seed_full.ttl
+
+# =========================
+# Optional local env/config secrets
+# =========================
+.env
+.env.*
