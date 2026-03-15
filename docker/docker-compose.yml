@@ -47,9 +47,11 @@ services:
       - SPARK_MASTER_URL=spark://spark:7077
       - FUSEKI_BASE_URL=http://fuseki:3030
       - FUSEKI_DATASET=psi-risk
+      - FUSEKI_ADMIN_USER=admin
       - FUSEKI_ADMIN_PASSWORD=admin
       - DATA_SOURCE=fuseki
-      - PLOT_WINDOW_SIZE=100
+      - PLOT_WINDOW_SIZE=128
+      - PLOT_STRIDE=1
     command: >
       bash -c "
       chmod +x /app/run_all.sh &&

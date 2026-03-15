@@ -4,6 +4,12 @@ from typing import Optional
 import pandas as pd
 import requests
 
+from config import FUSEKI_ADMIN_USER, FUSEKI_ADMIN_PASSWORD
+
+
+def get_fuseki_auth():
+    return (FUSEKI_ADMIN_USER, FUSEKI_ADMIN_PASSWORD)
+
 
 def wait_for_http(url: str, timeout_seconds: int = 60) -> None:
     start = time.time()
@@ -18,55 +24,38 @@ def wait_for_http(url: str, timeout_seconds: int = 60) -> None:
             last_error = exc
         time.sleep(2)
 
-    raise RuntimeError(f"Servizio HTTP non raggiungibile: {url}. Ultimo errore: {last_error}")
-
-
-def get_spark_session(master_url: str, app_name: str = "psi-risk-dt-pipeline"):
-    from pyspark.sql import SparkSession
-
-    spark = (
-        SparkSession.builder
-        .master(master_url)
-        .appName(app_name)
-        .config("spark.ui.showConsoleProgress", "false")
-        .getOrCreate()
+    raise RuntimeError(
+        f"Servizio HTTP non raggiungibile: {url}. Ultimo errore: {last_error}"
     )
-    return spark
 
 def fetch_fuseki_points(base_url: str, dataset_name: str) -> pd.DataFrame:
-    """
-    Legge i dati reali da Fuseki.
-    Si aspetta triple con questo schema logico:
-
-    ?obs psi:scenario ?scenario ;
-         psi:t        ?t ;
-         psi:value    ?value .
-    """
-    query_url = f"{base_url}/{dataset_name}/sparql"
+    query_url = f"{base_url}/{dataset_name}/query"
 
     sparql = """
     PREFIX psi: <http://example.org/psi-risk#>
 
     SELECT ?scenario ?t ?value
     WHERE {
-      ?obs psi:scenario ?scenario ;
+      ?obs a psi:Observation ;
+           psi:scenario ?scenario ;
            psi:t ?t ;
            psi:value ?value .
     }
     ORDER BY ?scenario ?t
     """
 
-    response = requests.get(
+    response = requests.post(
         query_url,
-        params={"query": sparql},
+        data={"query": sparql},
         headers={"Accept": "application/sparql-results+json"},
+        auth=get_fuseki_auth(),
         timeout=30,
     )
 
     if response.status_code == 404:
         raise RuntimeError(
             f"Dataset Fuseki '{dataset_name}' non trovato su {base_url}. "
-            f"Controlla che esista davvero e che contenga dati."
+            "Controlla che esista davvero e che contenga dati."
         )
 
     response.raise_for_status()
@@ -87,7 +76,7 @@ def fetch_fuseki_points(base_url: str, dataset_name: str) -> pd.DataFrame:
     if not rows:
         raise RuntimeError(
             f"Il dataset Fuseki '{dataset_name}' esiste, ma la query non ha restituito righe. "
-            f"Controlla predicati e struttura RDF."
+            "Controlla predicati, tipo RDF e struttura dei dati caricati."
         )
 
     df = pd.DataFrame(rows).sort_values(["scenario", "t"]).reset_index(drop=True)

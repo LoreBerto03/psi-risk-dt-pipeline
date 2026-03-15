@@ -19,11 +19,17 @@ from config import (
     ENTROPY_RESULT_FILE,
     DEFAULT_WINDOW_SIZE,
     DEFAULT_STRIDE,
+    DRIFT_START,
+    DRIFT_END,
+    SHOCK_CENTER,
+    SHOCK_WIDTH,
     ensure_directories,
 )
 
 PLOT_WINDOW_SIZE = int(os.getenv("PLOT_WINDOW_SIZE", str(DEFAULT_WINDOW_SIZE)))
 PLOT_STRIDE = int(os.getenv("PLOT_STRIDE", str(DEFAULT_STRIDE)))
+PLOT_SMOOTH_POINTS = int(os.getenv("PLOT_SMOOTH_POINTS", "25"))
+PLOT_SHOW_RAW = os.getenv("PLOT_SHOW_RAW", "1") == "1"
 
 
 def find_input_file() -> Path:
@@ -56,6 +62,31 @@ def sanitize_name(value: str) -> str:
         .replace("/", "_")
         .replace("\\", "_")
     )
+
+
+def add_scenario_highlight(ax, scenario: str) -> None:
+    scenario = str(scenario).strip().lower()
+
+    if scenario == "drift_gradual":
+        ax.axvspan(DRIFT_START, DRIFT_END, alpha=0.15, label="drift interval")
+    elif scenario == "shock":
+        half_width = SHOCK_WIDTH * 2
+        ax.axvspan(
+            SHOCK_CENTER - half_width,
+            SHOCK_CENTER + half_width,
+            alpha=0.15,
+            label="shock interval",
+        )
+
+
+def smooth_series(series: pd.Series, points: int, mode: str = "mean") -> pd.Series:
+    if points <= 1:
+        return series.copy()
+
+    if mode == "median":
+        return series.rolling(points, center=True, min_periods=1).median()
+
+    return series.rolling(points, center=True, min_periods=1).mean()
 
 
 def main() -> None:
@@ -146,42 +177,81 @@ def main() -> None:
         if scenario_df.empty:
             continue
 
+        x = scenario_df[time_column]
+        residual_raw = scenario_df["abs_dt_max"]
+        entropy_raw = scenario_df["delta_h_abs"].fillna(0.0)
         threshold = float(scenario_df["residual_threshold"].dropna().iloc[0])
 
-        fig, ax1 = plt.subplots(figsize=(12, 6))
+        residual_smooth = smooth_series(
+            residual_raw, points=PLOT_SMOOTH_POINTS, mode="median"
+        )
+        entropy_smooth = smooth_series(
+            entropy_raw, points=PLOT_SMOOTH_POINTS, mode="mean"
+        )
+
+        fig, (ax1, ax2) = plt.subplots(
+            2,
+            1,
+            figsize=(12, 8),
+            sharex=True,
+            gridspec_kw={"height_ratios": [2, 1]},
+        )
+
+        # Pannello 1: residuo
+        if PLOT_SHOW_RAW:
+            ax1.plot(
+                x,
+                residual_raw,
+                alpha=0.20,
+                linewidth=0.8,
+                label="raw max |Δt|",
+            )
 
         ax1.plot(
-            scenario_df[time_column],
-            scenario_df["abs_dt_max"],
-            label="max |Δt| in window",
+            x,
+            residual_smooth,
+            linewidth=2.0,
+            label=f"smoothed max |Δt| ({PLOT_SMOOTH_POINTS} pts)",
         )
         ax1.axhline(
             threshold,
             linestyle="--",
+            linewidth=1.5,
             label="baseline threshold",
         )
-        ax1.set_xlabel(time_column)
+        add_scenario_highlight(ax1, scenario)
         ax1.set_ylabel("Residual magnitude")
         ax1.grid(True)
+        ax1.legend(loc="best")
 
-        ax2 = ax1.twinx()
+        # Pannello 2: entropia
+        if PLOT_SHOW_RAW:
+            ax2.plot(
+                x,
+                entropy_raw,
+                alpha=0.20,
+                linewidth=0.8,
+                label="raw |ΔH|",
+            )
+
         ax2.plot(
-            scenario_df[time_column],
-            scenario_df["delta_h_abs"],
-            label="|ΔH|",
+            x,
+            entropy_smooth,
+            linewidth=2.0,
+            label=f"smoothed |ΔH| ({PLOT_SMOOTH_POINTS} pts)",
         )
+        add_scenario_highlight(ax2, scenario)
+        ax2.set_xlabel(time_column)
         ax2.set_ylabel("Entropy variation")
+        ax2.grid(True)
+        ax2.legend(loc="best")
 
-        title = f"Baseline vs entropy variation - {scenario}"
+        title = f"Residual threshold vs entropy response - {scenario}"
         if selected_window is not None:
             title += f" - window size {selected_window}"
         if selected_stride is not None:
             title += f" - stride {selected_stride}"
-        plt.title(title)
-
-        lines1, labels1 = ax1.get_legend_handles_labels()
-        lines2, labels2 = ax2.get_legend_handles_labels()
-        ax1.legend(lines1 + lines2, labels1 + labels2, loc="best")
+        fig.suptitle(title)
 
         fig.tight_layout()
 

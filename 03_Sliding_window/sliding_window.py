@@ -31,7 +31,7 @@ def load_raw_data() -> pd.DataFrame:
     print(f"[INFO] Attendo Fuseki su {FUSEKI_BASE_URL} ...")
     wait_for_http(f"{FUSEKI_BASE_URL}/$/ping", timeout_seconds=60)
 
-    print(f"[INFO] Lettura dati reali da Fuseki dataset '{FUSEKI_DATASET}' ...")
+    print(f"[INFO] Lettura dati da Fuseki dataset '{FUSEKI_DATASET}' ...")
     df = fetch_fuseki_points(FUSEKI_BASE_URL, FUSEKI_DATASET)
 
     required_columns = {"scenario", "t", "value"}
@@ -65,9 +65,7 @@ def compute_baseline_threshold(
     abs_values = np.abs(baseline_df["value"].to_numpy(dtype=float))
     threshold = float(abs_values.mean() + k * abs_values.std(ddof=0))
 
-    print(
-        f"[INFO] Soglia baseline calcolata da '{baseline_scenario}': {threshold:.6f}"
-    )
+    print(f"[INFO] Soglia baseline calcolata da '{baseline_scenario}': {threshold:.6f}")
     return threshold
 
 
@@ -95,7 +93,6 @@ def compute_entropy_over_time(
 
                 h = shannon_entropy(window, bins=bins, value_range=value_range)
                 delta_h = np.nan if previous_h is None else h - previous_h
-
                 abs_window = np.abs(window)
 
                 rows.append(
@@ -139,8 +136,8 @@ def main() -> None:
     global_max = float(df["value"].max())
     if np.isclose(global_min, global_max):
         global_max = global_min + 1e-9
-    global_value_range = (global_min, global_max)
 
+    global_value_range = (global_min, global_max)
     residual_threshold = compute_baseline_threshold(df)
 
     all_results = []
@@ -169,8 +166,7 @@ def main() -> None:
 
     if not all_results:
         raise RuntimeError(
-            "Nessun risultato prodotto. "
-            "Controlla i dati in Fuseki o riduci WINDOW_SIZES."
+            "Nessun risultato prodotto. Controlla i dati in Fuseki o riduci WINDOW_SIZES."
         )
 
     result_df = pd.concat(all_results, ignore_index=True)
