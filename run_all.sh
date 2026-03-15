@@ -14,22 +14,33 @@ cleanup() {
 
 trap cleanup EXIT
 
-echo "[1/5] Avvio servizi Docker..."
+echo "[1/7] Avvio servizi Docker..."
 docker compose -f "$COMPOSE_FILE" up -d spark spark-worker fuseki
 
-echo "[2/5] Attesa Fuseki..."
-until curl -s http://localhost:3030/\$/ping >/dev/null; do
+echo "[2/7] Attesa Fuseki..."
+until curl -fsS http://localhost:3030/\$/ping >/dev/null; do
   sleep 2
 done
 echo "[OK] Fuseki pronto"
 
-echo "[3/5] Calcolo entropia + sliding window..."
+echo "[3/7] Calcolo sliding window + entropia..."
 docker compose -f "$COMPOSE_FILE" run --rm pipeline python 03_Sliding_window/sliding_window.py
 
-echo "[4/5] Generazione grafici..."
+echo "[4/7] Generazione grafici segnale..."
+docker compose -f "$COMPOSE_FILE" run --rm pipeline python 04_Analisi_grafici/plot_signal.py
+
+echo "[5/7] Generazione grafici entropia..."
 docker compose -f "$COMPOSE_FILE" run --rm pipeline python 04_Analisi_grafici/plot_entropy.py
 
-echo "[5/5] Output generati:"
+echo "[6/7] Generazione grafici baseline vs entropia..."
+docker compose -f "$COMPOSE_FILE" run --rm pipeline python 04_Analisi_grafici/plot_baseline_vs_entropy.py
+
+echo "[7/7] Output generati:"
+echo
+echo "[TABLES]"
+ls -lah 05_Risultati/tables || true
+echo
+echo "[FIGURES]"
 ls -lah 05_Risultati/figures || true
 
 echo "[OK] Pipeline completata"

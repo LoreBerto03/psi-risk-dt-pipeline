@@ -64,11 +64,17 @@ def main() -> None:
     input_file = find_input_file()
     df = pd.read_csv(input_file)
 
-    required_columns = {"scenario", "entropy_shannon"}
+    required_columns = {
+        "scenario",
+        "delta_h_abs",
+        "abs_dt_max",
+        "residual_threshold",
+    }
     missing = required_columns - set(df.columns)
     if missing:
         raise RuntimeError(
-            f"Il file risultati non contiene le colonne richieste: {sorted(missing)}"
+            "Il file risultati non contiene le colonne richieste per il confronto: "
+            f"{sorted(missing)}"
         )
 
     if "t_center" in df.columns:
@@ -140,23 +146,44 @@ def main() -> None:
         if scenario_df.empty:
             continue
 
-        plt.figure(figsize=(12, 6))
-        plt.plot(
-            scenario_df[time_column],
-            scenario_df["entropy_shannon"],
-        )
+        threshold = float(scenario_df["residual_threshold"].dropna().iloc[0])
 
-        title = f"Shannon entropy over time - {scenario}"
+        fig, ax1 = plt.subplots(figsize=(12, 6))
+
+        ax1.plot(
+            scenario_df[time_column],
+            scenario_df["abs_dt_max"],
+            label="max |Δt| in window",
+        )
+        ax1.axhline(
+            threshold,
+            linestyle="--",
+            label="baseline threshold",
+        )
+        ax1.set_xlabel(time_column)
+        ax1.set_ylabel("Residual magnitude")
+        ax1.grid(True)
+
+        ax2 = ax1.twinx()
+        ax2.plot(
+            scenario_df[time_column],
+            scenario_df["delta_h_abs"],
+            label="|ΔH|",
+        )
+        ax2.set_ylabel("Entropy variation")
+
+        title = f"Baseline vs entropy variation - {scenario}"
         if selected_window is not None:
             title += f" - window size {selected_window}"
         if selected_stride is not None:
             title += f" - stride {selected_stride}"
-
         plt.title(title)
-        plt.xlabel(time_column)
-        plt.ylabel("Shannon entropy")
-        plt.grid(True)
-        plt.tight_layout()
+
+        lines1, labels1 = ax1.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax1.legend(lines1 + lines2, labels1 + labels2, loc="best")
+
+        fig.tight_layout()
 
         suffix = ""
         if selected_window is not None:
@@ -164,11 +191,11 @@ def main() -> None:
         if selected_stride is not None:
             suffix += f"_s{selected_stride}"
 
-        output_file = figures_dir / f"entropy_{sanitize_name(scenario)}{suffix}.png"
+        output_file = figures_dir / f"baseline_vs_entropy_{sanitize_name(scenario)}{suffix}.png"
         plt.savefig(output_file, dpi=150)
-        plt.close()
+        plt.close(fig)
 
-        print(f"[OK] Grafico entropia salvato: {output_file}")
+        print(f"[OK] Grafico confronto salvato: {output_file}")
 
 
 if __name__ == "__main__":

@@ -4,9 +4,13 @@ import os
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 # Parametri analisi
-WINDOW_SIZES = [50, 100, 200]
-STEP = 1
+WINDOW_SIZES = [64, 128, 256]
+STRIDES = [1, 4, 8]
 ENTROPY_BINS = 16
+
+# Default utili per plot / selezioni
+DEFAULT_WINDOW_SIZE = 128
+DEFAULT_STRIDE = 1
 
 # Docker / servizi
 USE_SPARK = os.getenv("USE_SPARK", "1") == "1"
