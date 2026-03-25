@@ -48,8 +48,7 @@ htmlcov/
 # =========================
 # Generated project outputs
 # =========================
-05_Risultati/figures/
-05_Risultati/tables/
+05_Risultati/
 artifacts/
 
 # =========================
