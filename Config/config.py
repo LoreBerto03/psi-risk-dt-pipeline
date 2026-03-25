@@ -36,9 +36,27 @@ FUSEKI_ADMIN_PASSWORD = os.getenv("FUSEKI_ADMIN_PASSWORD", "")
 RESULTS_DIR = PROJECT_ROOT / "05_Risultati"
 TABLES_DIR = RESULTS_DIR / "tables"
 FIGURES_DIR = RESULTS_DIR / "figures"
+SIGNAL_FIGURES_DIR = FIGURES_DIR / "signal"
+ENTROPY_FIGURES_DIR = FIGURES_DIR / "entropy"
+BASELINE_VS_ENTROPY_FIGURES_DIR = FIGURES_DIR / "baseline_vs_entropy"
+SENSITIVITY_TABLES_DIR = TABLES_DIR / "sensitivity"
+SENSITIVITY_FIGURES_DIR = FIGURES_DIR / "sensitivity"
+SENSITIVITY_METRICS = ("shannon", "sample", "permutation")
 
 ENTROPY_RESULT_FILE = TABLES_DIR / "entropy_final.csv"
-FINAL_FIGURE_FILE = FIGURES_DIR / "grafico_final """ """ """
+FINAL_FIGURE_FILE = FIGURES_DIR / "grafico_final.png"
+
 def ensure_directories() -> None:
-    for path in [TABLES_DIR, FIGURES_DIR]:
+    paths = [
+        TABLES_DIR,
+        FIGURES_DIR,
+        SIGNAL_FIGURES_DIR,
+        ENTROPY_FIGURES_DIR,
+        BASELINE_VS_ENTROPY_FIGURES_DIR,
+        SENSITIVITY_TABLES_DIR,
+        SENSITIVITY_FIGURES_DIR,
+    ]
+    paths.extend(SENSITIVITY_FIGURES_DIR / metric for metric in SENSITIVITY_METRICS)
+
+    for path in paths:
         path.mkdir(parents=True, exist_ok=True)

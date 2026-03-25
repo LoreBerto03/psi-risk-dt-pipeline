@@ -1,4 +1,6 @@
+import os
 import sys
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import numpy as np
@@ -21,10 +23,27 @@ from config import (
     FUSEKI_DATASET,
 )
 from entropy_shannon import shannon_entropy
+from entropy_sample import sample_entropy
+from entropy_permutation import permutation_entropy
 from docker_utils import wait_for_http, fetch_fuseki_points
 
 BASELINE_SCENARIO = "stable"
 THRESHOLD_STD_FACTOR = 3.0
+
+SAMPLE_ENTROPY_M = 2
+SAMPLE_ENTROPY_R_RATIO = 0.2
+PERMUTATION_ORDER = 3
+PERMUTATION_DELAY = 1
+
+MAX_WORKERS = int(os.getenv("SLIDING_MAX_WORKERS", str(os.cpu_count() or 1)))
+
+
+def compute_delta(current: float, previous: float | None) -> float:
+    if previous is None:
+        return np.nan
+    if not np.isfinite(current) or not np.isfinite(previous):
+        return np.nan
+    return float(current - previous)
 
 
 def load_raw_data() -> pd.DataFrame:
@@ -69,53 +88,193 @@ def compute_baseline_threshold(
     return threshold
 
 
-def compute_entropy_over_time(
-    values: np.ndarray,
-    times: np.ndarray,
-    scenario: str,
+def compute_entropy_for_configuration(task: dict) -> pd.DataFrame:
+    scenario = task["scenario"]
+    values = task["values"]
+    times = task["times"]
+    window_size = task["window_size"]
+    stride = task["stride"]
+    bins = task["bins"]
+    value_range = task["value_range"]
+    residual_threshold = task["residual_threshold"]
+
+    rows = []
+
+    previous_shannon = None
+    previous_sample = None
+    previous_permutation = None
+
+    for start in range(0, len(values) - window_size + 1, stride):
+        end = start + window_size
+
+        window = values[start:end]
+        window_times = times[start:end]
+
+        h_shannon = shannon_entropy(
+            window,
+            bins=bins,
+            value_range=value_range,
+        )
+
+        h_sample = sample_entropy(
+            window,
+            m=SAMPLE_ENTROPY_M,
+            r_ratio=SAMPLE_ENTROPY_R_RATIO,
+        )
+
+        h_permutation = permutation_entropy(
+            window,
+            order=PERMUTATION_ORDER,
+            delay=PERMUTATION_DELAY,
+            normalize=True,
+        )
+
+        delta_h_shannon = compute_delta(h_shannon, previous_shannon)
+        delta_h_sample = compute_delta(h_sample, previous_sample)
+        delta_h_permutation = compute_delta(h_permutation, previous_permutation)
+
+        abs_window = np.abs(window)
+
+        rows.append(
+            {
+                "scenario": scenario,
+                "window_size": int(window_size),
+                "stride": int(stride),
+                "t_start": float(window_times[0]),
+                "t_center": float(window_times[len(window_times) // 2]),
+                "t_end": float(window_times[-1]),
+
+                "entropy_shannon": float(h_shannon),
+                "entropy_sample": float(h_sample),
+                "entropy_permutation": float(h_permutation),
+
+                "delta_h_shannon": (
+                    np.nan if np.isnan(delta_h_shannon) else float(delta_h_shannon)
+                ),
+                "delta_h_shannon_abs": (
+                    np.nan if np.isnan(delta_h_shannon) else float(abs(delta_h_shannon))
+                ),
+
+                "delta_h_sample": (
+                    np.nan if np.isnan(delta_h_sample) else float(delta_h_sample)
+                ),
+                "delta_h_sample_abs": (
+                    np.nan if np.isnan(delta_h_sample) else float(abs(delta_h_sample))
+                ),
+
+                "delta_h_permutation": (
+                    np.nan
+                    if np.isnan(delta_h_permutation)
+                    else float(delta_h_permutation)
+                ),
+                "delta_h_permutation_abs": (
+                    np.nan
+                    if np.isnan(delta_h_permutation)
+                    else float(abs(delta_h_permutation))
+                ),
+
+                # compatibilità col plot baseline_vs_entropy già esistente
+                "delta_h": (
+                    np.nan if np.isnan(delta_h_shannon) else float(delta_h_shannon)
+                ),
+                "delta_h_abs": (
+                    np.nan if np.isnan(delta_h_shannon) else float(abs(delta_h_shannon))
+                ),
+
+                "abs_dt_mean": float(abs_window.mean()),
+                "abs_dt_max": float(abs_window.max()),
+                "over_threshold_ratio": float(
+                    (abs_window > residual_threshold).mean()
+                ),
+                "residual_threshold": float(residual_threshold),
+            }
+        )
+
+        previous_shannon = h_shannon
+        previous_sample = h_sample
+        previous_permutation = h_permutation
+
+    return pd.DataFrame(rows)
+
+
+def build_tasks(
+    df: pd.DataFrame,
     window_sizes: list[int],
     strides: list[int],
     bins: int,
     value_range: tuple[float, float],
     residual_threshold: float,
-) -> pd.DataFrame:
-    rows = []
+) -> list[dict]:
+    tasks = []
 
-    for window_size in window_sizes:
-        for stride in strides:
-            previous_h = None
+    for scenario, group in df.groupby("scenario", sort=True):
+        values = group["value"].to_numpy(dtype=float)
+        times = group["t"].to_numpy(dtype=float)
 
-            for start in range(0, len(values) - window_size + 1, stride):
-                end = start + window_size
+        if len(values) < min(window_sizes):
+            print(
+                f"[WARN] Scenario '{scenario}' ignorato: "
+                f"{len(values)} punti < finestra minima {min(window_sizes)}"
+            )
+            continue
 
-                window = values[start:end]
-                window_times = times[start:end]
-
-                h = shannon_entropy(window, bins=bins, value_range=value_range)
-                delta_h = np.nan if previous_h is None else h - previous_h
-                abs_window = np.abs(window)
-
-                rows.append(
+        for window_size in window_sizes:
+            for stride in strides:
+                tasks.append(
                     {
                         "scenario": scenario,
+                        "values": values,
+                        "times": times,
                         "window_size": int(window_size),
                         "stride": int(stride),
-                        "t_start": float(window_times[0]),
-                        "t_center": float(window_times[len(window_times) // 2]),
-                        "t_end": float(window_times[-1]),
-                        "entropy_shannon": float(h),
-                        "delta_h": np.nan if previous_h is None else float(delta_h),
-                        "delta_h_abs": np.nan if previous_h is None else float(abs(delta_h)),
-                        "abs_dt_mean": float(abs_window.mean()),
-                        "abs_dt_max": float(abs_window.max()),
-                        "over_threshold_ratio": float((abs_window > residual_threshold).mean()),
+                        "bins": int(bins),
+                        "value_range": value_range,
                         "residual_threshold": float(residual_threshold),
                     }
                 )
 
-                previous_h = h
+    return tasks
 
-    return pd.DataFrame(rows)
+
+def run_tasks_parallel(tasks: list[dict]) -> list[pd.DataFrame]:
+    if not tasks:
+        return []
+
+    workers = max(1, min(MAX_WORKERS, len(tasks)))
+    print(f"[INFO] Avvio calcolo parallelo con {workers} worker(s) su {len(tasks)} task")
+
+    results = []
+
+    if workers == 1:
+        for idx, task in enumerate(tasks, start=1):
+            print(
+                f"[INFO] Task {idx}/{len(tasks)} -> "
+                f"scenario={task['scenario']}, W={task['window_size']}, stride={task['stride']}"
+            )
+            results.append(compute_entropy_for_configuration(task))
+        return results
+
+    with ProcessPoolExecutor(max_workers=workers) as executor:
+        future_to_task = {
+            executor.submit(compute_entropy_for_configuration, task): task
+            for task in tasks
+        }
+
+        completed = 0
+        total = len(tasks)
+
+        for future in as_completed(future_to_task):
+            task = future_to_task[future]
+            completed += 1
+
+            print(
+                f"[INFO] Completato task {completed}/{total} -> "
+                f"scenario={task['scenario']}, W={task['window_size']}, stride={task['stride']}"
+            )
+
+            results.append(future.result())
+
+    return results
 
 
 def main() -> None:
@@ -140,36 +299,30 @@ def main() -> None:
     global_value_range = (global_min, global_max)
     residual_threshold = compute_baseline_threshold(df)
 
-    all_results = []
-    for scenario, group in df.groupby("scenario", sort=True):
-        values = group["value"].to_numpy(dtype=float)
-        times = group["t"].to_numpy(dtype=float)
+    tasks = build_tasks(
+        df=df,
+        window_sizes=WINDOW_SIZES,
+        strides=STRIDES,
+        bins=ENTROPY_BINS,
+        value_range=global_value_range,
+        residual_threshold=residual_threshold,
+    )
 
-        if len(values) < min(WINDOW_SIZES):
-            print(
-                f"[WARN] Scenario '{scenario}' ignorato: "
-                f"{len(values)} punti < finestra minima {min(WINDOW_SIZES)}"
-            )
-            continue
-
-        scenario_results = compute_entropy_over_time(
-            values=values,
-            times=times,
-            scenario=scenario,
-            window_sizes=WINDOW_SIZES,
-            strides=STRIDES,
-            bins=ENTROPY_BINS,
-            value_range=global_value_range,
-            residual_threshold=residual_threshold,
+    if not tasks:
+        raise RuntimeError(
+            "Nessun task creato. Controlla i dati in Fuseki o riduci WINDOW_SIZES."
         )
-        all_results.append(scenario_results)
+
+    all_results = run_tasks_parallel(tasks)
 
     if not all_results:
-        raise RuntimeError(
-            "Nessun risultato prodotto. Controlla i dati in Fuseki o riduci WINDOW_SIZES."
-        )
+        raise RuntimeError("Nessun risultato prodotto durante il calcolo.")
 
     result_df = pd.concat(all_results, ignore_index=True)
+    result_df = result_df.sort_values(
+        ["scenario", "window_size", "stride", "t_start"]
+    ).reset_index(drop=True)
+
     result_df.to_csv(entropy_output_file, index=False)
 
     print(f"[OK] Risultato finale salvato in: {entropy_output_file}")

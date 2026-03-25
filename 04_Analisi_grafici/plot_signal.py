@@ -20,8 +20,14 @@ from config import (
     DRIFT_END,
     SHOCK_CENTER,
     SHOCK_WIDTH,
+    SIGNAL_FIGURES_DIR,
     ensure_directories,
 )
+
+RAW_COLOR = "#cbd5e1"
+SIGNAL_COLOR = "#1d4ed8"
+DRIFT_SPAN_COLOR = "#f59e0b"
+SHOCK_SPAN_COLOR = "#ef4444"
 
 PLOT_SIGNAL_SMOOTH_POINTS = int(os.getenv("PLOT_SIGNAL_SMOOTH_POINTS", "25"))
 PLOT_SIGNAL_SHOW_RAW = os.getenv("PLOT_SIGNAL_SHOW_RAW", "1") == "1"
@@ -44,20 +50,40 @@ def smooth_series(series: pd.Series, points: int) -> pd.Series:
     return series.rolling(points, center=True, min_periods=1).mean()
 
 
+def compute_plot_limits(
+    values: pd.Series,
+    min_padding: float = 1e-3,
+) -> tuple[float, float]:
+    vmin = float(values.min())
+    vmax = float(values.max())
+
+    if vmin == vmax:
+        vmax = vmin + min_padding
+
+    padding = max(0.05 * (vmax - vmin), min_padding)
+    return (vmin - padding, vmax + padding)
+
+
 def add_scenario_highlight(ax, scenario: str) -> None:
     scenario = str(scenario).strip().lower()
 
     if scenario == "drift_gradual":
-        ax.axvspan(DRIFT_START, DRIFT_END, alpha=0.15, label="drift interval")
+        ax.axvspan(
+            DRIFT_START,
+            DRIFT_END,
+            color=DRIFT_SPAN_COLOR,
+            alpha=0.18,
+            label="drift interval",
+        )
     elif scenario == "shock":
         half_width = SHOCK_WIDTH * 2
         ax.axvspan(
             SHOCK_CENTER - half_width,
             SHOCK_CENTER + half_width,
-            alpha=0.15,
+            color=SHOCK_SPAN_COLOR,
+            alpha=0.18,
             label="shock interval",
         )
-
 
 def scenario_pretty_name(scenario: str) -> str:
     mapping = {
@@ -90,23 +116,12 @@ def main() -> None:
     if df.empty:
         raise RuntimeError("Il file raw_points.csv è vuoto.")
 
-    figures_dir = PROJECT_ROOT / "05_Risultati" / "figures"
+    figures_dir = SIGNAL_FIGURES_DIR
     figures_dir.mkdir(parents=True, exist_ok=True)
 
     scenarios = sorted(df["scenario"].dropna().unique().tolist())
     if not scenarios:
         raise RuntimeError("Nessuno scenario trovato in raw_points.csv")
-
-    # scala y comune per tutti gli scenari
-    global_y_min = float(df["value"].min())
-    global_y_max = float(df["value"].max())
-
-    if global_y_min == global_y_max:
-        global_y_max = global_y_min + 1e-6
-
-    padding = 0.05 * (global_y_max - global_y_min)
-    y_min = global_y_min - padding
-    y_max = global_y_max + padding
 
     for scenario in scenarios:
         scenario_df = df[df["scenario"] == scenario].copy().sort_values("t")
@@ -117,6 +132,7 @@ def main() -> None:
         x = scenario_df["t"]
         y_raw = scenario_df["value"]
         y_smooth = smooth_series(y_raw, PLOT_SIGNAL_SMOOTH_POINTS)
+        y_min, y_max = compute_plot_limits(y_raw)
 
         plt.figure(figsize=(12, 6))
 
@@ -124,15 +140,17 @@ def main() -> None:
             plt.plot(
                 x,
                 y_raw,
-                alpha=0.25,
-                linewidth=0.8,
+                color=RAW_COLOR,
+                alpha=0.55,
+                linewidth=0.9,
                 label="raw signal",
             )
 
         plt.plot(
             x,
             y_smooth,
-            linewidth=2.2,
+            color=SIGNAL_COLOR,
+            linewidth=2.4,
             label=f"smoothed signal ({PLOT_SIGNAL_SMOOTH_POINTS} pts)",
         )
 

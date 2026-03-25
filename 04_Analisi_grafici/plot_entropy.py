@@ -17,17 +17,25 @@ for p in [PROJECT_ROOT, CONFIG_DIR]:
 
 from config import (
     ENTROPY_RESULT_FILE,
-    DEFAULT_WINDOW_SIZE,
-    DEFAULT_STRIDE,
     DRIFT_START,
     DRIFT_END,
     SHOCK_CENTER,
     SHOCK_WIDTH,
+    ENTROPY_FIGURES_DIR,
     ensure_directories,
 )
 
-PLOT_WINDOW_SIZE = int(os.getenv("PLOT_WINDOW_SIZE", str(DEFAULT_WINDOW_SIZE)))
-PLOT_STRIDE = int(os.getenv("PLOT_STRIDE", str(DEFAULT_STRIDE)))
+RAW_SHANNON = "#93c5fd"
+RAW_SAMPLE = "#86efac"
+RAW_PERM = "#d8b4fe"
+
+SHANNON_COLOR = "#1d4ed8"
+SAMPLE_COLOR = "#16a34a"
+PERMUTATION_COLOR = "#7c3aed"
+
+DRIFT_SPAN_COLOR = "#f59e0b"
+SHOCK_SPAN_COLOR = "#ef4444"
+
 PLOT_SMOOTH_POINTS = int(os.getenv("PLOT_SMOOTH_POINTS", "25"))
 PLOT_SHOW_RAW = os.getenv("PLOT_SHOW_RAW", "1") == "1"
 
@@ -70,17 +78,43 @@ def smooth_series(series: pd.Series, points: int) -> pd.Series:
     return series.rolling(points, center=True, min_periods=1).mean()
 
 
+def compute_plot_limits(
+    *series_list: pd.Series,
+    min_padding: float = 1e-3,
+) -> tuple[float, float]:
+    combined = pd.concat(series_list, ignore_index=True).dropna()
+
+    if combined.empty:
+        return (0.0, 1.0)
+
+    vmin = float(combined.min())
+    vmax = float(combined.max())
+
+    if vmin == vmax:
+        vmax = vmin + min_padding
+
+    padding = max(0.05 * (vmax - vmin), min_padding)
+    return (max(0.0, vmin - padding), vmax + padding)
+
+
 def add_scenario_highlight(ax, scenario: str) -> None:
     scenario = str(scenario).strip().lower()
 
     if scenario == "drift_gradual":
-        ax.axvspan(DRIFT_START, DRIFT_END, alpha=0.15, label="drift interval")
+        ax.axvspan(
+            DRIFT_START,
+            DRIFT_END,
+            color=DRIFT_SPAN_COLOR,
+            alpha=0.18,
+            label="drift interval",
+        )
     elif scenario == "shock":
         half_width = SHOCK_WIDTH * 2
         ax.axvspan(
             SHOCK_CENTER - half_width,
             SHOCK_CENTER + half_width,
-            alpha=0.15,
+            color=SHOCK_SPAN_COLOR,
+            alpha=0.18,
             label="shock interval",
         )
 
@@ -100,7 +134,14 @@ def main() -> None:
     input_file = find_input_file()
     df = pd.read_csv(input_file)
 
-    required_columns = {"scenario", "entropy_shannon"}
+    required_columns = {
+        "scenario",
+        "window_size",
+        "stride",
+        "entropy_shannon",
+        "entropy_sample",
+        "entropy_permutation",
+    }
     missing = required_columns - set(df.columns)
     if missing:
         raise RuntimeError(
@@ -116,126 +157,111 @@ def main() -> None:
             "Il file risultati non contiene né 't_center' né 't_end'."
         )
 
-    selected_window = None
-    if "window_size" in df.columns:
-        available_windows = sorted(df["window_size"].dropna().unique().tolist())
-
-        if not available_windows:
-            raise RuntimeError(
-                "La colonna 'window_size' esiste ma non contiene valori validi."
-            )
-
-        if PLOT_WINDOW_SIZE in available_windows:
-            selected_window = PLOT_WINDOW_SIZE
-        else:
-            selected_window = available_windows[0]
-            print(
-                f"[WARN] window_size={PLOT_WINDOW_SIZE} non presente. "
-                f"Uso window_size={selected_window}"
-            )
-
-        df = df[df["window_size"] == selected_window].copy()
-
-    selected_stride = None
-    if "stride" in df.columns:
-        available_strides = sorted(df["stride"].dropna().unique().tolist())
-
-        if not available_strides:
-            raise RuntimeError(
-                "La colonna 'stride' esiste ma non contiene valori validi."
-            )
-
-        if PLOT_STRIDE in available_strides:
-            selected_stride = PLOT_STRIDE
-        else:
-            selected_stride = available_strides[0]
-            print(
-                f"[WARN] stride={PLOT_STRIDE} non presente. "
-                f"Uso stride={selected_stride}"
-            )
-
-        df = df[df["stride"] == selected_stride].copy()
-
-    if df.empty:
-        raise RuntimeError("Nessun dato disponibile per generare i grafici.")
-
-    figures_dir = PROJECT_ROOT / "05_Risultati" / "figures"
+    figures_dir = ENTROPY_FIGURES_DIR
     figures_dir.mkdir(parents=True, exist_ok=True)
 
     scenarios = sorted(df["scenario"].dropna().unique().tolist())
     if not scenarios:
         raise RuntimeError("Nessuno scenario trovato nei dati.")
 
-    # scala y comune per tutti gli scenari
-    global_y_min = float(df["entropy_shannon"].min())
-    global_y_max = float(df["entropy_shannon"].max())
+    configs = (
+        df[["window_size", "stride"]]
+        .drop_duplicates()
+        .sort_values(["window_size", "stride"])
+        .itertuples(index=False)
+    )
 
-    if global_y_min == global_y_max:
-        global_y_max = global_y_min + 1e-6
+    total_plots = 0
 
-    padding = 0.05 * (global_y_max - global_y_min)
-    y_min = global_y_min - padding
-    y_max = global_y_max + padding
+    for config in configs:
+        selected_window = int(config.window_size)
+        selected_stride = int(config.stride)
 
-    for scenario in scenarios:
-        scenario_df = (
-            df[df["scenario"] == scenario]
-            .copy()
-            .sort_values(time_column)
-        )
+        config_df = df[
+            (df["window_size"] == selected_window) &
+            (df["stride"] == selected_stride)
+        ].copy()
 
-        if scenario_df.empty:
-            continue
-
-        x = scenario_df[time_column]
-        y_raw = scenario_df["entropy_shannon"]
-        y_smooth = smooth_series(y_raw, PLOT_SMOOTH_POINTS)
-
-        plt.figure(figsize=(12, 6))
-
-        if PLOT_SHOW_RAW:
-            plt.plot(
-                x,
-                y_raw,
-                alpha=0.25,
-                linewidth=0.9,
-                label="raw H(t)",
+        for scenario in scenarios:
+            scenario_df = (
+                config_df[config_df["scenario"] == scenario]
+                .copy()
+                .sort_values(time_column)
             )
 
-        plt.plot(
-            x,
-            y_smooth,
-            linewidth=2.2,
-            label=f"smoothed H(t) ({PLOT_SMOOTH_POINTS} pts)",
-        )
+            if scenario_df.empty:
+                continue
 
-        add_scenario_highlight(plt.gca(), scenario)
+            x = scenario_df[time_column]
 
-        title = scenario_pretty_name(scenario)
-        if selected_window is not None:
-            title += f" – window {selected_window}"
-        if selected_stride is not None:
-            title += f", stride {selected_stride}"
+            shannon_raw = scenario_df["entropy_shannon"]
+            sample_raw = scenario_df["entropy_sample"]
+            permutation_raw = scenario_df["entropy_permutation"]
 
-        plt.title(title)
-        plt.xlabel("time")
-        plt.ylabel("Shannon entropy H(t)")
-        plt.ylim(y_min, y_max)
-        plt.grid(True)
-        plt.legend(loc="best")
-        plt.tight_layout()
+            shannon_smooth = smooth_series(shannon_raw, PLOT_SMOOTH_POINTS)
+            sample_smooth = smooth_series(sample_raw, PLOT_SMOOTH_POINTS)
+            permutation_smooth = smooth_series(permutation_raw, PLOT_SMOOTH_POINTS)
+            y_min, y_max = compute_plot_limits(
+                shannon_raw,
+                sample_raw,
+                permutation_raw,
+            )
 
-        suffix = ""
-        if selected_window is not None:
-            suffix += f"_w{selected_window}"
-        if selected_stride is not None:
-            suffix += f"_s{selected_stride}"
+            plt.figure(figsize=(12, 6))
 
-        output_file = figures_dir / f"entropy_{sanitize_name(scenario)}{suffix}.png"
-        plt.savefig(output_file, dpi=150)
-        plt.close()
+            if PLOT_SHOW_RAW:
+                plt.plot(
+                    x, shannon_raw, color=RAW_SHANNON, alpha=0.35,
+                    linewidth=0.9, label="Shannon raw"
+                )
+                plt.plot(
+                    x, sample_raw, color=RAW_SAMPLE, alpha=0.35,
+                    linewidth=0.9, label="Sample raw"
+                )
+                plt.plot(
+                    x, permutation_raw, color=RAW_PERM, alpha=0.35,
+                    linewidth=0.9, label="Permutation raw"
+                )
 
-        print(f"[OK] Grafico entropia salvato: {output_file}")
+            plt.plot(
+                x, shannon_smooth, color=SHANNON_COLOR,
+                linewidth=2.4, label=f"Shannon ({PLOT_SMOOTH_POINTS} pts)"
+            )
+            plt.plot(
+                x, sample_smooth, color=SAMPLE_COLOR,
+                linewidth=2.4, label=f"Sample ({PLOT_SMOOTH_POINTS} pts)"
+            )
+            plt.plot(
+                x, permutation_smooth, color=PERMUTATION_COLOR,
+                linewidth=2.4, label=f"Permutation ({PLOT_SMOOTH_POINTS} pts)"
+            )
+
+            add_scenario_highlight(plt.gca(), scenario)
+
+            title = (
+                f"{scenario_pretty_name(scenario)} – "
+                f"W={selected_window}, stride={selected_stride}"
+            )
+
+            plt.title(title)
+            plt.xlabel("time")
+            plt.ylabel("Entropy H(t)")
+            plt.ylim(y_min, y_max)
+            plt.grid(True, alpha=0.25)
+            plt.legend(loc="best")
+            plt.tight_layout()
+
+            output_file = figures_dir / (
+                f"entropy_{sanitize_name(scenario)}"
+                f"_w{selected_window}_s{selected_stride}.png"
+            )
+            plt.savefig(output_file, dpi=150)
+            plt.close()
+
+            total_plots += 1
+            print(f"[OK] Grafico entropie salvato: {output_file}")
+
+    print(f"[OK] Totale grafici entropia generati: {total_plots}")
 
 
 if __name__ == "__main__":
