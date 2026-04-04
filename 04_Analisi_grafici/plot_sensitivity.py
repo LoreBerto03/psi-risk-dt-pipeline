@@ -24,6 +24,7 @@ from config import (
     SHOCK_WIDTH,
     SENSITIVITY_TABLES_DIR,
     SENSITIVITY_FIGURES_DIR,
+    get_configuration_id,
     ensure_directories,
 )
 
@@ -156,6 +157,7 @@ def build_summary(df: pd.DataFrame, time_column: str, delta_col: str) -> pd.Data
                 fp_ratio = float(fp_count / len(signal)) if len(signal) > 0 else 0.0
                 detection_time = np.nan
                 detection_delay = np.nan
+                false_negative_flag = 0
             else:
                 pre_mask = times < event_start
                 post_mask = times >= event_start
@@ -172,9 +174,11 @@ def build_summary(df: pd.DataFrame, time_column: str, delta_col: str) -> pd.Data
                 if detections.size > 0:
                     detection_time = float(detections[0])
                     detection_delay = float(detection_time - event_start)
+                    false_negative_flag = 0
                 else:
                     detection_time = np.nan
                     detection_delay = np.nan
+                    false_negative_flag = 1
 
             noise_mean = float(np.mean(baseline_signal)) if baseline_signal.size > 0 else 0.0
             noise_std = float(np.std(baseline_signal, ddof=0)) if baseline_signal.size > 0 else 0.0
@@ -182,6 +186,7 @@ def build_summary(df: pd.DataFrame, time_column: str, delta_col: str) -> pd.Data
             rows.append(
                 {
                     "metric": SENSITIVITY_METRIC,
+                    "configuration": get_configuration_id(w, s) or "",
                     "scenario": scenario,
                     "window_size": w,
                     "stride": s,
@@ -190,6 +195,7 @@ def build_summary(df: pd.DataFrame, time_column: str, delta_col: str) -> pd.Data
                     "noise_std": noise_std,
                     "fp_count": int(fp_count),
                     "fp_ratio": float(fp_ratio),
+                    "false_negative_flag": int(false_negative_flag),
                     "detection_time": detection_time,
                     "detection_delay": detection_delay,
                 }
@@ -347,6 +353,24 @@ def main() -> None:
         ylabel="Detection delay",
         title=f"Sensitivity analysis - shock delay ({metric_name})",
         output_file=output_figures_dir / f"sensitivity_delay_shock_{metric_slug}.png",
+    )
+
+    plot_metric_vs_window(
+        df=summary_df,
+        scenario="drift_gradual",
+        value_column="false_negative_flag",
+        ylabel="False negative flag",
+        title=f"Sensitivity analysis - drift false negatives ({metric_name})",
+        output_file=output_figures_dir / f"sensitivity_fn_drift_{metric_slug}.png",
+    )
+
+    plot_metric_vs_window(
+        df=summary_df,
+        scenario="shock",
+        value_column="false_negative_flag",
+        ylabel="False negative flag",
+        title=f"Sensitivity analysis - shock false negatives ({metric_name})",
+        output_file=output_figures_dir / f"sensitivity_fn_shock_{metric_slug}.png",
     )
 
 

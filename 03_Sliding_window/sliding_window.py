@@ -15,9 +15,8 @@ for p in [PROJECT_ROOT, ENTROPY_MODULE_DIR, CONFIG_DIR]:
         sys.path.append(str(p))
 
 from config import (
-    WINDOW_SIZES,
-    STRIDES,
     ENTROPY_BINS,
+    iter_experiment_configurations,
     ensure_directories,
     FUSEKI_BASE_URL,
     FUSEKI_DATASET,
@@ -89,6 +88,7 @@ def compute_baseline_threshold(
 
 
 def compute_entropy_for_configuration(task: dict) -> pd.DataFrame:
+    configuration = task["configuration"]
     scenario = task["scenario"]
     values = task["values"]
     times = task["times"]
@@ -137,6 +137,7 @@ def compute_entropy_for_configuration(task: dict) -> pd.DataFrame:
 
         rows.append(
             {
+                "configuration": configuration,
                 "scenario": scenario,
                 "window_size": int(window_size),
                 "stride": int(stride),
@@ -199,39 +200,39 @@ def compute_entropy_for_configuration(task: dict) -> pd.DataFrame:
 
 def build_tasks(
     df: pd.DataFrame,
-    window_sizes: list[int],
-    strides: list[int],
+    configurations,
     bins: int,
     value_range: tuple[float, float],
     residual_threshold: float,
 ) -> list[dict]:
     tasks = []
+    min_window_size = min(int(config["window_size"]) for config in configurations)
 
     for scenario, group in df.groupby("scenario", sort=True):
         values = group["value"].to_numpy(dtype=float)
         times = group["t"].to_numpy(dtype=float)
 
-        if len(values) < min(window_sizes):
+        if len(values) < min_window_size:
             print(
                 f"[WARN] Scenario '{scenario}' ignorato: "
-                f"{len(values)} punti < finestra minima {min(window_sizes)}"
+                f"{len(values)} punti < finestra minima {min_window_size}"
             )
             continue
 
-        for window_size in window_sizes:
-            for stride in strides:
-                tasks.append(
-                    {
-                        "scenario": scenario,
-                        "values": values,
-                        "times": times,
-                        "window_size": int(window_size),
-                        "stride": int(stride),
-                        "bins": int(bins),
-                        "value_range": value_range,
-                        "residual_threshold": float(residual_threshold),
-                    }
-                )
+        for config in configurations:
+            tasks.append(
+                {
+                    "configuration": str(config["id"]),
+                    "scenario": scenario,
+                    "values": values,
+                    "times": times,
+                    "window_size": int(config["window_size"]),
+                    "stride": int(config["stride"]),
+                    "bins": int(bins),
+                    "value_range": value_range,
+                    "residual_threshold": float(residual_threshold),
+                }
+            )
 
     return tasks
 
@@ -249,7 +250,8 @@ def run_tasks_parallel(tasks: list[dict]) -> list[pd.DataFrame]:
         for idx, task in enumerate(tasks, start=1):
             print(
                 f"[INFO] Task {idx}/{len(tasks)} -> "
-                f"scenario={task['scenario']}, W={task['window_size']}, stride={task['stride']}"
+                f"config={task['configuration']}, scenario={task['scenario']}, "
+                f"W={task['window_size']}, stride={task['stride']}"
             )
             results.append(compute_entropy_for_configuration(task))
         return results
@@ -269,7 +271,8 @@ def run_tasks_parallel(tasks: list[dict]) -> list[pd.DataFrame]:
 
             print(
                 f"[INFO] Completato task {completed}/{total} -> "
-                f"scenario={task['scenario']}, W={task['window_size']}, stride={task['stride']}"
+                f"config={task['configuration']}, scenario={task['scenario']}, "
+                f"W={task['window_size']}, stride={task['stride']}"
             )
 
             results.append(future.result())
@@ -301,8 +304,7 @@ def main() -> None:
 
     tasks = build_tasks(
         df=df,
-        window_sizes=WINDOW_SIZES,
-        strides=STRIDES,
+        configurations=iter_experiment_configurations(include_reference=True),
         bins=ENTROPY_BINS,
         value_range=global_value_range,
         residual_threshold=residual_threshold,
@@ -320,7 +322,7 @@ def main() -> None:
 
     result_df = pd.concat(all_results, ignore_index=True)
     result_df = result_df.sort_values(
-        ["scenario", "window_size", "stride", "t_start"]
+        ["configuration", "scenario", "t_start"]
     ).reset_index(drop=True)
 
     result_df.to_csv(entropy_output_file, index=False)

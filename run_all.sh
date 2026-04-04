@@ -24,7 +24,20 @@ move_existing_outputs() {
   done < <(find "$search_dir" -maxdepth 1 -type f -name "$pattern" -print0)
 }
 
+clear_generated_outputs() {
+  find 05_Risultati/tables -type f \
+    \( -name "*.csv" -o -name "*.ttl" \) -delete 2>/dev/null || true
+  find 05_Risultati/figures -type f -name "*.png" -delete 2>/dev/null || true
+}
+
+keep_only_entropy_figures() {
+  find 05_Risultati/figures -mindepth 1 -maxdepth 1 ! -name entropy -exec rm -rf {} + \
+    2>/dev/null || true
+}
+
 prepare_output_layout() {
+  clear_generated_outputs
+
   mkdir -p \
     05_Risultati/tables \
     05_Risultati/tables/sensitivity \
@@ -32,13 +45,24 @@ prepare_output_layout() {
     05_Risultati/figures/signal \
     05_Risultati/figures/entropy \
     05_Risultati/figures/baseline_vs_entropy \
+    05_Risultati/figures/baseline_vs_entropy/legacy_shannon \
+    05_Risultati/figures/baseline_vs_entropy/shannon \
+    05_Risultati/figures/baseline_vs_entropy/sample \
+    05_Risultati/figures/baseline_vs_entropy/permutation \
     05_Risultati/figures/sensitivity/shannon \
     05_Risultati/figures/sensitivity/sample \
     05_Risultati/figures/sensitivity/permutation
 
   move_existing_outputs "05_Risultati/figures" "signal_*.png" "05_Risultati/figures/signal"
   move_existing_outputs "05_Risultati/figures" "entropy_*.png" "05_Risultati/figures/entropy"
-  move_existing_outputs "05_Risultati/figures" "baseline_vs_entropy_*.png" "05_Risultati/figures/baseline_vs_entropy"
+  move_existing_outputs "05_Risultati/figures" "baseline_vs_entropy_shannon_*.png" "05_Risultati/figures/baseline_vs_entropy/shannon"
+  move_existing_outputs "05_Risultati/figures" "baseline_vs_entropy_sample_*.png" "05_Risultati/figures/baseline_vs_entropy/sample"
+  move_existing_outputs "05_Risultati/figures" "baseline_vs_entropy_permutation_*.png" "05_Risultati/figures/baseline_vs_entropy/permutation"
+  move_existing_outputs "05_Risultati/figures" "baseline_vs_entropy_*.png" "05_Risultati/figures/baseline_vs_entropy/legacy_shannon"
+  move_existing_outputs "05_Risultati/figures/baseline_vs_entropy" "baseline_vs_entropy_shannon_*.png" "05_Risultati/figures/baseline_vs_entropy/shannon"
+  move_existing_outputs "05_Risultati/figures/baseline_vs_entropy" "baseline_vs_entropy_sample_*.png" "05_Risultati/figures/baseline_vs_entropy/sample"
+  move_existing_outputs "05_Risultati/figures/baseline_vs_entropy" "baseline_vs_entropy_permutation_*.png" "05_Risultati/figures/baseline_vs_entropy/permutation"
+  move_existing_outputs "05_Risultati/figures/baseline_vs_entropy" "baseline_vs_entropy_*.png" "05_Risultati/figures/baseline_vs_entropy/legacy_shannon"
   move_existing_outputs "05_Risultati/figures" "sensitivity_*_shannon.png" "05_Risultati/figures/sensitivity/shannon"
   move_existing_outputs "05_Risultati/figures" "sensitivity_*_sample.png" "05_Risultati/figures/sensitivity/sample"
   move_existing_outputs "05_Risultati/figures" "sensitivity_*_permutation.png" "05_Risultati/figures/sensitivity/permutation"
@@ -78,6 +102,8 @@ for metric in shannon sample permutation; do
   echo "[INFO] Sensitivity metric: $metric"
   docker compose -f "$COMPOSE_FILE" run --rm -e SENSITIVITY_METRIC="$metric" pipeline python 04_Analisi_grafici/plot_sensitivity.py
 done
+
+keep_only_entropy_figures
 
 echo "[9/9] Output generati:"
 echo

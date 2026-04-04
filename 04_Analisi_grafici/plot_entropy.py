@@ -6,6 +6,7 @@ import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -22,6 +23,7 @@ from config import (
     SHOCK_CENTER,
     SHOCK_WIDTH,
     ENTROPY_FIGURES_DIR,
+    get_configuration_id,
     ensure_directories,
 )
 
@@ -38,6 +40,7 @@ SHOCK_SPAN_COLOR = "#ef4444"
 
 PLOT_SMOOTH_POINTS = int(os.getenv("PLOT_SMOOTH_POINTS", "25"))
 PLOT_SHOW_RAW = os.getenv("PLOT_SHOW_RAW", "1") == "1"
+THRESHOLD_STD_FACTOR = float(os.getenv("SENSITIVITY_STD_FACTOR", "3.0"))
 
 
 def find_input_file() -> Path:
@@ -128,6 +131,59 @@ def scenario_pretty_name(scenario: str) -> str:
     return mapping.get(str(scenario), str(scenario))
 
 
+def resolve_configuration_label(
+    config_df: pd.DataFrame,
+    selected_window: int,
+    selected_stride: int,
+) -> str:
+    if "configuration" in config_df.columns:
+        values = config_df["configuration"].dropna().astype(str).str.strip()
+        if not values.empty:
+            return values.iloc[0]
+
+    return get_configuration_id(selected_window, selected_stride) or ""
+
+
+def event_start_for_scenario(scenario: str) -> float | None:
+    scenario = str(scenario).strip().lower()
+
+    if scenario == "drift_gradual":
+        return float(DRIFT_START)
+
+    if scenario == "shock":
+        return float(SHOCK_CENTER - (2 * SHOCK_WIDTH))
+
+    return None
+
+
+def compute_tau_from_stable(stable_df: pd.DataFrame, delta_col: str) -> float:
+    values = stable_df[delta_col].fillna(0.0).to_numpy(dtype=float)
+    return float(values.mean() + THRESHOLD_STD_FACTOR * values.std(ddof=0))
+
+
+def compute_detection_time(
+    scenario_df: pd.DataFrame,
+    stable_df: pd.DataFrame,
+    scenario: str,
+    time_column: str,
+    delta_col: str,
+) -> float:
+    event_start = event_start_for_scenario(scenario)
+    if event_start is None:
+        return float("nan")
+
+    tau = compute_tau_from_stable(stable_df, delta_col)
+    signal = scenario_df[delta_col].fillna(0.0).to_numpy(dtype=float)
+    times = scenario_df[time_column].to_numpy(dtype=float)
+    post_mask = times >= event_start
+    post_times = times[post_mask]
+    post_signal = signal[post_mask]
+    detections = post_times[post_signal > tau]
+    if detections.size == 0:
+        return float("nan")
+    return float(detections[0])
+
+
 def main() -> None:
     ensure_directories()
 
@@ -181,6 +237,19 @@ def main() -> None:
             (df["window_size"] == selected_window) &
             (df["stride"] == selected_stride)
         ].copy()
+        configuration_label = resolve_configuration_label(
+            config_df=config_df,
+            selected_window=selected_window,
+            selected_stride=selected_stride,
+        )
+        stable_df = (
+            config_df[config_df["scenario"] == "stable"]
+            .copy()
+            .sort_values(time_column)
+        )
+
+        if stable_df.empty:
+            continue
 
         for scenario in scenarios:
             scenario_df = (
@@ -225,22 +294,65 @@ def main() -> None:
 
             plt.plot(
                 x, shannon_smooth, color=SHANNON_COLOR,
-                linewidth=2.4, label=f"Shannon ({PLOT_SMOOTH_POINTS} pts)"
+                linewidth=2.4, label="Shannon"
             )
             plt.plot(
                 x, sample_smooth, color=SAMPLE_COLOR,
-                linewidth=2.4, label=f"Sample ({PLOT_SMOOTH_POINTS} pts)"
+                linewidth=2.4, label="Sample"
             )
             plt.plot(
                 x, permutation_smooth, color=PERMUTATION_COLOR,
-                linewidth=2.4, label=f"Permutation ({PLOT_SMOOTH_POINTS} pts)"
+                linewidth=2.4, label="Permutation"
             )
+
+            if scenario != "stable":
+                shannon_detection_time = compute_detection_time(
+                    scenario_df=scenario_df,
+                    stable_df=stable_df,
+                    scenario=scenario,
+                    time_column=time_column,
+                    delta_col="delta_h_shannon_abs",
+                )
+                sample_detection_time = compute_detection_time(
+                    scenario_df=scenario_df,
+                    stable_df=stable_df,
+                    scenario=scenario,
+                    time_column=time_column,
+                    delta_col="delta_h_sample_abs",
+                )
+                permutation_detection_time = compute_detection_time(
+                    scenario_df=scenario_df,
+                    stable_df=stable_df,
+                    scenario=scenario,
+                    time_column=time_column,
+                    delta_col="delta_h_permutation_abs",
+                )
+
+                for label, detection_time, color in [
+                    ("Shannon detect", shannon_detection_time, SHANNON_COLOR),
+                    ("Sample detect", sample_detection_time, SAMPLE_COLOR),
+                    ("Permutation detect", permutation_detection_time, PERMUTATION_COLOR),
+                ]:
+                    if np.isfinite(detection_time):
+                        plt.axvline(
+                            detection_time,
+                            color=color,
+                            linestyle=":",
+                            linewidth=1.5,
+                            alpha=0.9,
+                            label=f"{label} @ t={detection_time:.0f}",
+                        )
 
             add_scenario_highlight(plt.gca(), scenario)
 
+            config_title = (
+                f"{configuration_label} - "
+                if configuration_label
+                else ""
+            )
             title = (
                 f"{scenario_pretty_name(scenario)} – "
-                f"W={selected_window}, stride={selected_stride}"
+                f"{config_title}W={selected_window}, stride={selected_stride}"
             )
 
             plt.title(title)

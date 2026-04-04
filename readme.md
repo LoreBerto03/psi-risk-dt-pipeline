@@ -38,13 +38,16 @@ Lo script esegue in sequenza:
 I parametri principali sono centralizzati in [`Config/config.py`](Config/config.py):
 
 - dataset sintetico: seed, numero punti, rumore, intensita' drift/shock
-- sliding window: `WINDOW_SIZES` e `STRIDES`
+- sliding window: configurazioni sperimentali esplicite `C1..C5`
 - output directory
 
 Parametri principali:
 
-- `WINDOW_SIZES = [64, 128, 256]`
-- `STRIDES = [1, 4, 8]`
+- `C1 = (W=128, stride=1)` configurazione di riferimento
+- `C2 = (W=64, stride=1)` effetto window piccola
+- `C3 = (W=256, stride=1)` effetto window grande
+- `C4 = (W=128, stride=4)` effetto stride medio
+- `C5 = (W=128, stride=8)` effetto stride ampio
 - `SYNTHETIC_SEED`
 - `SYNTHETIC_POINTS_PER_SCENARIO`
 
@@ -65,7 +68,7 @@ Gli output runtime finiscono in `05_Risultati/`:
 01_Generazione_dati/      dataset sintetico + upload su Fuseki
 02_Calcolo_entropie/      implementazioni entropiche
 03_Sliding_window/        sliding window e calcolo Delta H
-04_Analisi_grafici/       generazione grafici e bundle finale
+04_Analisi_grafici/       generazione grafici
 05_Risultati/             output generati automaticamente
 Config/                   configurazione centralizzata e utility
 docker/                   compose e immagine del container pipeline
@@ -75,5 +78,6 @@ run_all.sh                esecuzione end-to-end
 ## Note
 
 - `05_Risultati/` e' ignorata da Git: gli output vengono rigenerati dalla pipeline.
+- La sliding window genera solo le configurazioni richieste dalla griglia sperimentale `C1..C5`, evitando combinazioni extra non previste.
 - Il progetto mantiene una pipeline deterministica tramite seed fisso e configurazione centralizzata.
 - I grafici diagnostici completi restano disponibili per debug nei risultati generati dalla pipeline.
