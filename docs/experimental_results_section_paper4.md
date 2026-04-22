@@ -1,59 +1,53 @@
-## 2.1 Experimental Results
+## 3.2 Experimental Results
 
-### 2.1.1 Recap dell'experimental setup
-L'esperimento e stato eseguito su tre scenari sintetici implementati nel codice come `stable`, `drift_gradual` e `shock`. Per allineamento con la notazione di tesi/paper, in questa sezione li indichiamo come: Scenario A (stabile), Scenario B (drift graduale) e Scenario C (shock). Ogni scenario contiene 3000 campioni temporali, con drift attivo in `t=1000..2000` e inizio evento shock in `t=1450`.
+### 3.2.1 Experimental Setup Recap
+The experimental campaign evaluates entropy-based monitoring on three synthetic scenarios: `A (stable)`, `B (gradual drift)`, and `C (shock)`. The time axis contains 3000 points per scenario. In Scenario B, drift is active in `t=1000..2000`; in Scenario C, the shock event starts at `t=1450`.
 
-La griglia sperimentale comprende cinque configurazioni di sliding window:
-- `C1 = (W=128, stride=1)` configurazione di riferimento;
-- `C2 = (W=64, stride=1)` finestra piccola;
-- `C3 = (W=256, stride=1)` finestra grande;
-- `C4 = (W=128, stride=4)` stride medio;
-- `C5 = (W=128, stride=8)` stride ampio.
+Five sliding-window configurations are tested:
+- `C1`: `W=128`, `stride=1` (reference)
+- `C2`: `W=64`, `stride=1` (smaller window)
+- `C3`: `W=256`, `stride=1` (larger window)
+- `C4`: `W=128`, `stride=4` (medium stride)
+- `C5`: `W=128`, `stride=8` (coarse stride)
 
-Su ogni finestra sono state calcolate Shannon Entropy, Sample Entropy e Permutation Entropy. Il segnale usato per la detection e `|Delta H|` (variazione assoluta tra finestre consecutive della stessa metrica). Per ogni coppia configurazione-metrica, la soglia di allarme e definita come:
-`tau = mean(|Delta H| nello scenario stabile) + 3 * std(|Delta H| nello scenario stabile)`.
+Three entropy metrics are compared: Shannon, Sample, and Permutation. Detection is based on `|Delta H|` with threshold `tau = mean(stable |Delta H|) + 3 * std(stable |Delta H|)`. Reported quantities are detection time (`t_detect`), detection delay, pre-event false positives, and peak `|Delta H|`.
 
-Le metriche di valutazione riportate nel summary run sono: detection time (primo superamento soglia dopo l'evento), delay (detection time meno inizio evento), falsi positivi (superamenti soglia prima dell'evento) e picco `peak |Delta H|`.
+All numeric values cited below come from `results/tables/final/results_ready_summary.csv` (and the equivalent LaTeX table `results/tables/final/results_ready_summary.tex`). Visual behavior is referenced to the curated figure package in `results/figures/final/`.
 
-### 2.1.2 Effetto della finestra W (C2/C1/C3, stride=1)
-A stride fissato (`s=1`), il confronto `C2 -> C1 -> C3` mostra un trade-off non lineare tra reattivita e stabilita.
+### 3.2.2 Sensitivity to Window Size
+Window-size sensitivity is assessed by comparing `C2/C1/C3` at fixed `stride=1`; see:
+- `results/figures/final/fig_scenarioA_W_sensitivity_entropy_panel.png`
+- `results/figures/final/fig_scenarioB_W_sensitivity_entropy_panel.png`
+- `results/figures/final/fig_scenarioC_W_sensitivity_entropy_panel.png`
 
-Sul drift (Scenario B), Shannon rileva molto presto con `C1` e `C3` (`delay=12` e `14`), mentre `C2` risulta piu lenta (`delay=36`), cioe un comportamento opposto all'aspettativa "finestra piu piccola = risposta sempre piu rapida". Per Sample, `C2` e la piu rapida (`delay=27`) ma con maggiore attivita spurie pre-evento (`false_pos=32`) rispetto a `C3` (`delay=30`, `false_pos=17`). Per Permutation, `C2` e l'unica configurazione realmente reattiva sul drift (`delay=47`), mentre `C1` e `C3` sono molto ritardate (`delay=369` e `371`).
+For Scenario B (gradual drift), behavior depends on the metric. Shannon does not show monotonic acceleration with smaller windows: delay is `36` in `C2`, `12` in `C1`, and `14` in `C3`. Sample is fastest in `C2` (`delay=27`) but with higher pre-event false positives (`32`) than `C3` (`17`). Permutation benefits strongly from `C2` (`delay=47`) while `C1` and `C3` remain late (`369` and `371`).
 
-Sul shock (Scenario C), si osservano comportamenti ancora piu marcati. Shannon passa da `delay=50` in `C1` a `delay=6` in `C2`, ma in `C3` degrada drasticamente (`delay=141`, `false_pos=106`). Sample resta sistematicamente lenta in tutte le finestre (`delay=149..210`). Permutation e estremamente rapida in `C1` (`delay=1`) e ancora buona in `C2` (`delay=5`), ma torna lenta in `C3` (`delay=172`).
+For Scenario C (shock), the same factor yields mixed effects. Shannon improves from `delay=50` (`C1`) to `6` (`C2`), but `C3` is substantially slower (`141`) and has the highest pre-event false positives (`106`). Sample remains slow across all three windows (`149`, `152`, `210`). Permutation is fastest in `C1` (`delay=1`), still fast in `C2` (`5`), and slower in `C3` (`172`).
 
-Guardando lo scenario stabile (A), `C2` tende a essere la meno stabile: ad esempio Sample passa da `44` falsi positivi in `C1` a `122` in `C2`, con aumento del picco `|Delta H|` da `0.481` a `1.281`. `C3` riduce invece l'intensita dei picchi (es. Shannon `0.034` vs `0.061` in `C1`) ma puo introdurre ritardi importanti sugli eventi rapidi.
+In Scenario A (stable), smaller windows generally increase baseline activity for some metrics: for Sample, pre-event false positives increase from `44` (`C1`) to `122` (`C2`), and peak `|Delta H|` rises from `0.481177` to `1.280934`. Conversely, larger windows may damp peaks (e.g., Shannon peak `0.033929` in `C3` vs `0.060870` in `C1`) but can coincide with slower reaction in event scenarios.
 
-In sintesi, la riduzione di `W` aumenta la sensibilita ma puo amplificare la variabilita del segnale (specialmente con Sample), mentre l'aumento di `W` stabilizza l'ampiezza di `|Delta H|` ma rischia ritardi elevati e, in alcuni casi, anche peggioramenti inattesi sui falsi positivi (es. Shannon in shock con `C3`).
+### 3.2.3 Sensitivity to Stride
+Stride sensitivity is assessed by comparing `C1/C4/C5` at fixed `W=128`; see:
+- `results/figures/final/fig_scenarioA_stride_sensitivity_entropy_panel.png`
+- `results/figures/final/fig_scenarioB_stride_sensitivity_entropy_panel.png`
+- `results/figures/final/fig_scenarioC_stride_sensitivity_entropy_panel.png`
 
-### 2.1.3 Effetto dello stride (C1/C4/C5, W=128)
-A finestra fissa (`W=128`), l'aumento di stride (`1 -> 4 -> 8`) rende le curve temporalmente piu regolari e meno dense (meno finestre valutate), ma peggiora in generale la granularita temporale della detection.
+In Scenario B (gradual drift), increasing stride generally increases delay: Shannon moves from `12` (`C1`) to `120` (`C4`) and `80` (`C5`); Sample from `75` to `80` (`C4` and `C5`); Permutation from `369` to `372` and `376`. This indicates reduced temporal responsiveness as updates become sparser.
 
-Sul drift, il delay aumenta per tutte le metriche: Shannon da `12` (`C1`) a `120` (`C4`) e `80` (`C5`); Sample da `75` a `80`; Permutation da `369` a `372` e `376`. Quindi la minore frequenza di aggiornamento penalizza soprattutto la reattivita su cambiamenti graduali.
+In Scenario C (shock), the effect is metric-dependent. Shannon improves (`50` in `C1` to `6` in both `C4` and `C5`), while Sample degrades (`152` to `154` and `158`) and Permutation degrades (`1` to `10` and `14`). Therefore, stride cannot be interpreted as a uniformly beneficial parameter.
 
-Sul shock il quadro e misto: per Shannon il delay migliora (`50 -> 6 -> 6`), mentre per Sample e Permutation peggiora (`152 -> 154 -> 158` e `1 -> 10 -> 14`). Questo indica che, su eventi impulsivi, l'effetto stride dipende fortemente dalla metrica.
+For Scenario A, absolute false positives decrease for Shannon (`65` in `C1`, `9` in `C4`, `3` in `C5`), but this should be interpreted as an empirical count trend, not as universal evidence of better operating characteristics across all metrics and scenarios.
 
-I falsi positivi diminuiscono nettamente in valore assoluto con stride alto (es. scenario stabile Shannon: `65` in `C1`, `9` in `C4`, `3` in `C5`). Tuttavia, questa lettura va interpretata con cautela: con stride alto il numero di finestre e molto inferiore (`2873` finestre in `C1`, `719` in `C4`, `360` in `C5`), quindi parte della riduzione dipende anche da meno opportunita di falso allarme. Normalizzando per finestre pre-evento, in alcuni casi la stabilita non migliora (es. shock-Permutation: circa `2.9%` in `C1` contro `5.5%` in `C4`).
+### 3.2.4 Cross-Metric Comparison
+Across Scenarios B and C (all configurations), Shannon provides the lowest average delay (`47.1`), Sample is intermediate (`111.5`), and Permutation is highest (`173.7`). These averages are directly computed from the corresponding rows in `results_ready_summary.csv`.
 
-Nel complesso, lo stride elevato e utile quando il vincolo principale e il costo computazionale e quando si accetta una minore precisione temporale; non e una scelta universalmente migliore sul piano detection.
+At the same time, Shannon accumulates the highest total pre-event false positives (`346`), compared with Sample (`187`) and Permutation (`155`). Peak intensity also differs substantially: Sample frequently exhibits the largest peak `|Delta H|` values (up to `1.373049` in Scenario B, `C2`), while Permutation remains on a lower scale (typically around `10^-3` to `10^-2` in many configurations).
 
-### 2.1.4 Confronto tra Shannon, Sample e Permutation Entropy
-Considerando insieme scenari B e C, Shannon e la metrica mediamente piu reattiva (`delay` medio circa `47`), ma anche la piu "rumorosa" in termini di falsi positivi complessivi (`346`). Sample mostra un comportamento intermedio (`delay` medio circa `111.5`, falsi positivi `187`) con picchi `|Delta H|` molto elevati (media circa `0.678`), segnale di forte sensibilita alle fluttuazioni locali. Permutation e mediamente la meno reattiva (`delay` medio circa `173.7`) ma mantiene picchi molto contenuti (media circa `0.011`), quindi con dinamica piu "compressa".
+The cross-metric evidence therefore supports a non-dominance conclusion: lower delay does not systematically coincide with lower false positives or lower peak excursions.
 
-Per scenario, emergono tre profili distinti:
-- Scenario A (stabile): Permutation tende ad avere i picchi piu bassi, ma non e sempre quella con meno falsi positivi; Shannon e spesso la piu incline ad attivazioni spurie.
-- Scenario B (drift): Shannon fornisce il miglior compromesso reattivita/ritardo nelle configurazioni a stride basso, mentre Permutation fatica a catturare drift graduali (ritardi molto alti in `C1`/`C3`).
-- Scenario C (shock): Permutation puo essere eccellente nel tempo di primo rilevamento (`delay=1` in `C1`), ma il vantaggio non e robusto su tutte le configurazioni; Shannon con `C2/C4/C5` ottiene detection rapida ma con forte dipendenza dalla configurazione.
+### 3.2.5 Key Takeaway for PSI-Risk-DT Monitoring
+The final evidence supports a practical trade-off interpretation for PSI-Risk-DT monitoring.
 
-### 2.1.5 Interpretazione dei trade-off e risultati negativi/ambigui
-I risultati confermano che non esiste una configurazione dominante su tutte le dimensioni (detection time, delay, falsi positivi, peak `|Delta H|`). Il trade-off principale e tra:
-- reattivita alta (delay basso) con maggiore rischio di instabilita/falsi allarmi;
-- stabilita del segnale (`|Delta H|` piu contenuto) con maggiore latenza di detection.
+First, no single configuration-metric pair is uniformly best across stable, drift, and shock regimes. Second, parameter effects are scenario- and metric-dependent: reducing `W` can improve reactivity in selected cases but may also amplify baseline activity; increasing stride can reduce temporal detail and can either help or hurt delay, depending on the metric.
 
-Risultati negativi o ambigui da evidenziare esplicitamente:
-- `C2` non e sempre piu reattiva di `C1` (es. Shannon su drift: `delay 36` vs `12`), quindi "finestra piccola" non implica vantaggio sistematico.
-- `C3` mostra casi critici su eventi rapidi (es. Shannon su shock: `delay=141`, `false_pos=106`), peggiori del previsto per una configurazione teoricamente piu stabile.
-- Per Sample, la forte intensita dei picchi (`peak |Delta H|` fino a `1.373`) non si traduce in detection molto rapida sullo shock (ritardi sempre elevati).
-- Aumento stride riduce i falsi positivi assoluti ma puo peggiorare le percentuali normalizzate in alcuni scenari/metriche; quindi il beneficio sulla stabilita non e sempre reale, ma talvolta effetto della minore densita di campionamento.
-
-Operativamente, i dati suggeriscono di usare configurazioni con stride basso quando la priorita e minimizzare il delay su drift; per shock, una scelta competitiva e Shannon con `C2` o Permutation con `C1`, ma con monitoraggio attento dei falsi positivi e della robustezza cross-scenario.
+From an operational perspective, the recommended practice is to select configuration-metric pairs according to the target anomaly profile and tolerance to false positives, using the final figures (`results/figures/final/*.png`) for qualitative behavior inspection and the final table (`results/tables/final/results_ready_summary.csv`) for quantitative verification.
