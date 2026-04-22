@@ -60,8 +60,6 @@ results/tables/final/*
 results/figures/*
 !results/figures/final/
 results/figures/final/*
-!results/figures/final/*.png
-!results/figures/final/captions_and_notes.md
 
 # Legacy output directory (kept ignored after refactor)
 05_Risultati/
