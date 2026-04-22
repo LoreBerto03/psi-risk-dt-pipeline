@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-CONFIG_DIR = PROJECT_ROOT / "Config"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+CONFIG_DIR = PROJECT_ROOT / "configs"
 
 for p in [PROJECT_ROOT, CONFIG_DIR]:
     if str(p) not in sys.path:
@@ -129,8 +129,8 @@ COMPARISON_META = {
 def find_input_file() -> Path:
     candidates = [
         ENTROPY_RESULT_FILE,
-        PROJECT_ROOT / "05_Risultati" / "tables" / "entropy_final.csv",
-        PROJECT_ROOT / "05_Risultati" / "tables" / "entropy_over_time.csv",
+        PROJECT_ROOT / "results" / "tables" / "entropy_final.csv",
+        PROJECT_ROOT / "results" / "tables" / "entropy_over_time.csv",
     ]
 
     for path in candidates:

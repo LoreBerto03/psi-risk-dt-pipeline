@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pandas as pd
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-ANALYSIS_DIR = PROJECT_ROOT / "04_Analisi_grafici"
-CONFIG_DIR = PROJECT_ROOT / "Config"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+ANALYSIS_DIR = PROJECT_ROOT / "src" / "analysis"
+CONFIG_DIR = PROJECT_ROOT / "configs"
 
 for p in [PROJECT_ROOT, ANALYSIS_DIR, CONFIG_DIR]:
     if str(p) not in sys.path:

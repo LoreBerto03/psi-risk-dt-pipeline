@@ -6,9 +6,9 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-ENTROPY_MODULE_DIR = PROJECT_ROOT / "02_Calcolo_entropie"
-CONFIG_DIR = PROJECT_ROOT / "Config"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+ENTROPY_MODULE_DIR = PROJECT_ROOT / "src" / "entropy"
+CONFIG_DIR = PROJECT_ROOT / "configs"
 
 for p in [PROJECT_ROOT, ENTROPY_MODULE_DIR, CONFIG_DIR]:
     if str(p) not in sys.path:
@@ -16,6 +16,7 @@ for p in [PROJECT_ROOT, ENTROPY_MODULE_DIR, CONFIG_DIR]:
 
 from config import (
     ENTROPY_BINS,
+    TABLES_DIR,
     iter_experiment_configurations,
     ensure_directories,
     FUSEKI_BASE_URL,
@@ -283,7 +284,7 @@ def run_tasks_parallel(tasks: list[dict]) -> list[pd.DataFrame]:
 def main() -> None:
     ensure_directories()
 
-    output_dir = PROJECT_ROOT / "05_Risultati" / "tables"
+    output_dir = TABLES_DIR
     output_dir.mkdir(parents=True, exist_ok=True)
 
     raw_output_file = output_dir / "raw_points.csv"

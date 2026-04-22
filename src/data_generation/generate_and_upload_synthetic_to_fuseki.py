@@ -7,11 +7,10 @@ import requests
 from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import RDF, XSD
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-CONFIG_DIR = PROJECT_ROOT / "Config"
-UTILS_DIR = PROJECT_ROOT / "03_Sliding_window"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+CONFIG_DIR = PROJECT_ROOT / "configs"
 
-for p in [PROJECT_ROOT, CONFIG_DIR, UTILS_DIR]:
+for p in [PROJECT_ROOT, CONFIG_DIR]:
     if str(p) not in sys.path:
         sys.path.append(str(p))
 
@@ -30,6 +29,7 @@ from config import (
     FUSEKI_DATASET,
     FUSEKI_ADMIN_USER,
     FUSEKI_ADMIN_PASSWORD,
+    TABLES_DIR,
     ensure_directories,
 )
 from docker_utils import wait_for_http
@@ -113,7 +113,7 @@ def upload_graph_to_fuseki_default(graph: Graph) -> None:
 def save_debug_outputs(df: pd.DataFrame, graph: Graph) -> None:
     ensure_directories()
 
-    tables_dir = PROJECT_ROOT / "05_Risultati" / "tables"
+    tables_dir = TABLES_DIR
     tables_dir.mkdir(parents=True, exist_ok=True)
 
     df.to_csv(tables_dir / "synthetic_points_generated.csv", index=False)

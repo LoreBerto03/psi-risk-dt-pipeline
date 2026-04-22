@@ -49,20 +49,22 @@ htmlcov/
 # =========================
 # Generated project outputs
 # =========================
-05_Risultati/*
-!05_Risultati/experimental_results_section_paper4.md
-!05_Risultati/tables/
-05_Risultati/tables/*
-!05_Risultati/tables/final/
-05_Risultati/tables/final/*
-!05_Risultati/tables/final/*.csv
-!05_Risultati/tables/final/*.tex
-!05_Risultati/figures/
-05_Risultati/figures/*
-!05_Risultati/figures/final/
-05_Risultati/figures/final/*
-!05_Risultati/figures/final/*.png
-!05_Risultati/figures/final/captions_and_notes.md
+results/*
+!results/tables/
+results/tables/*
+!results/tables/final/
+results/tables/final/*
+!results/tables/final/*.csv
+!results/tables/final/*.tex
+!results/figures/
+results/figures/*
+!results/figures/final/
+results/figures/final/*
+!results/figures/final/*.png
+!results/figures/final/captions_and_notes.md
+
+# Legacy output directory (kept ignored after refactor)
+05_Risultati/
 artifacts/
 
 # =========================
