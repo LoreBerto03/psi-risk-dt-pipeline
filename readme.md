@@ -4,10 +4,8 @@ Pipeline riproducibile per esperimenti di drift detection entropica su dataset s
 
 Il progetto genera tre scenari sintetici (`stable`, `drift_gradual`, `shock`), li carica in Apache Jena Fuseki, calcola le metriche entropiche su sliding window e produce:
 
-- grafici del segnale `Delta t`
-- grafici `H(t)` con Shannon, Sample e Permutation entropy
-- grafici `baseline_vs_entropy` con soglia su `|Delta t|`, soglia `tau` su `|Delta H|` e detection point
-- tabelle e grafici di sensitivity analysis su `W` e `stride`
+- 15 grafici finali `H(t)` per le configurazioni `C1..C5` sui 3 scenari
+- un report testuale con detection time, delay, falsi positivi e peak intensity
 
 ## Requisiti
 
@@ -30,8 +28,8 @@ Lo script esegue in sequenza:
 2. generazione del dataset sintetico con seed fisso
 3. upload RDF su Fuseki
 4. calcolo delle entropie su sliding window
-5. generazione dei grafici
-6. sensitivity analysis
+5. generazione dei 15 grafici finali
+6. esportazione del report testuale
 
 ## Configurazione
 
@@ -56,11 +54,9 @@ Parametri principali:
 Gli output runtime finiscono in `05_Risultati/`:
 
 - `tables/entropy_final.csv`: risultato completo della sliding window
-- `tables/sensitivity/`: summary per metrica e tabella aggregata
-- `figures/signal/`: segnale sintetico per scenario
-- `figures/entropy/`: grafici con le tre entropie sovrapposte
-- `figures/baseline_vs_entropy/`: confronto residuo vs risposta entropica
-- `figures/sensitivity/`: grafici di sensitivity per metrica
+- `tables/raw_points.csv`: segnali sintetici generati
+- `figures/entropy/`: solo le 15 immagini finali richieste
+- `figures/run_results_summary.txt`: tabella testuale con i risultati dei run
 
 ## Struttura del repository
 
@@ -77,7 +73,7 @@ run_all.sh                esecuzione end-to-end
 
 ## Note
 
-- `05_Risultati/` e' ignorata da Git: gli output vengono rigenerati dalla pipeline.
+- Gli output intermedi in `05_Risultati/` restano ignorati da Git; vengono versionati solo i deliverable finali curati per tesi/paper.
 - La sliding window genera solo le configurazioni richieste dalla griglia sperimentale `C1..C5`, evitando combinazioni extra non previste.
 - Il progetto mantiene una pipeline deterministica tramite seed fisso e configurazione centralizzata.
-- I grafici diagnostici completi restano disponibili per debug nei risultati generati dalla pipeline.
+- La cartella `figures/` viene mantenuta minimale: solo le 15 immagini finali e il report `.txt`.

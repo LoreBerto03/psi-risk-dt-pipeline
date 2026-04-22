@@ -312,7 +312,7 @@ def main() -> None:
 
     if not tasks:
         raise RuntimeError(
-            "Nessun task creato. Controlla i dati in Fuseki o riduci WINDOW_SIZES."
+            "Nessun task creato. Controlla i dati in Fuseki o la griglia sperimentale."
         )
 
     all_results = run_tasks_parallel(tasks)

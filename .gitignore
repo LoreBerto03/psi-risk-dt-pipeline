@@ -15,6 +15,7 @@ env/
 # =========================
 .vscode/
 .idea/
+.codex
 *.swp
 *.swo
 
@@ -48,7 +49,14 @@ htmlcov/
 # =========================
 # Generated project outputs
 # =========================
-05_Risultati/
+05_Risultati/*
+!05_Risultati/experimental_results_section_paper4.md
+!05_Risultati/figures/
+05_Risultati/figures/*
+!05_Risultati/figures/final/
+05_Risultati/figures/final/*
+!05_Risultati/figures/final/*.png
+!05_Risultati/figures/final/captions_and_notes.md
 artifacts/
 
 # =========================

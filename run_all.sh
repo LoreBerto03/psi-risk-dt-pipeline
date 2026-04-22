@@ -12,26 +12,14 @@ cleanup() {
   docker compose -f "$COMPOSE_FILE" down
 }
 
-move_existing_outputs() {
-  local search_dir="$1"
-  local pattern="$2"
-  local target_dir="$3"
-
-  mkdir -p "$target_dir"
-
-  while IFS= read -r -d '' file; do
-    mv -n "$file" "$target_dir"/
-  done < <(find "$search_dir" -maxdepth 1 -type f -name "$pattern" -print0)
-}
-
 clear_generated_outputs() {
   find 05_Risultati/tables -type f \
     \( -name "*.csv" -o -name "*.ttl" \) -delete 2>/dev/null || true
-  find 05_Risultati/figures -type f -name "*.png" -delete 2>/dev/null || true
-}
-
-keep_only_entropy_figures() {
-  find 05_Risultati/figures -mindepth 1 -maxdepth 1 ! -name entropy -exec rm -rf {} + \
+  find 05_Risultati/figures -type f \
+    \( -name "*.png" -o -name "*.txt" \) -delete 2>/dev/null || true
+  find 05_Risultati/figures -mindepth 1 -maxdepth 1 -type d ! -name entropy -exec rm -rf {} + \
+    2>/dev/null || true
+  find 05_Risultati/tables -mindepth 1 -maxdepth 1 -type d -exec rm -rf {} + \
     2>/dev/null || true
 }
 
@@ -40,72 +28,36 @@ prepare_output_layout() {
 
   mkdir -p \
     05_Risultati/tables \
-    05_Risultati/tables/sensitivity \
     05_Risultati/figures \
-    05_Risultati/figures/signal \
-    05_Risultati/figures/entropy \
-    05_Risultati/figures/baseline_vs_entropy \
-    05_Risultati/figures/baseline_vs_entropy/legacy_shannon \
-    05_Risultati/figures/baseline_vs_entropy/shannon \
-    05_Risultati/figures/baseline_vs_entropy/sample \
-    05_Risultati/figures/baseline_vs_entropy/permutation \
-    05_Risultati/figures/sensitivity/shannon \
-    05_Risultati/figures/sensitivity/sample \
-    05_Risultati/figures/sensitivity/permutation
-
-  move_existing_outputs "05_Risultati/figures" "signal_*.png" "05_Risultati/figures/signal"
-  move_existing_outputs "05_Risultati/figures" "entropy_*.png" "05_Risultati/figures/entropy"
-  move_existing_outputs "05_Risultati/figures" "baseline_vs_entropy_shannon_*.png" "05_Risultati/figures/baseline_vs_entropy/shannon"
-  move_existing_outputs "05_Risultati/figures" "baseline_vs_entropy_sample_*.png" "05_Risultati/figures/baseline_vs_entropy/sample"
-  move_existing_outputs "05_Risultati/figures" "baseline_vs_entropy_permutation_*.png" "05_Risultati/figures/baseline_vs_entropy/permutation"
-  move_existing_outputs "05_Risultati/figures" "baseline_vs_entropy_*.png" "05_Risultati/figures/baseline_vs_entropy/legacy_shannon"
-  move_existing_outputs "05_Risultati/figures/baseline_vs_entropy" "baseline_vs_entropy_shannon_*.png" "05_Risultati/figures/baseline_vs_entropy/shannon"
-  move_existing_outputs "05_Risultati/figures/baseline_vs_entropy" "baseline_vs_entropy_sample_*.png" "05_Risultati/figures/baseline_vs_entropy/sample"
-  move_existing_outputs "05_Risultati/figures/baseline_vs_entropy" "baseline_vs_entropy_permutation_*.png" "05_Risultati/figures/baseline_vs_entropy/permutation"
-  move_existing_outputs "05_Risultati/figures/baseline_vs_entropy" "baseline_vs_entropy_*.png" "05_Risultati/figures/baseline_vs_entropy/legacy_shannon"
-  move_existing_outputs "05_Risultati/figures" "sensitivity_*_shannon.png" "05_Risultati/figures/sensitivity/shannon"
-  move_existing_outputs "05_Risultati/figures" "sensitivity_*_sample.png" "05_Risultati/figures/sensitivity/sample"
-  move_existing_outputs "05_Risultati/figures" "sensitivity_*_permutation.png" "05_Risultati/figures/sensitivity/permutation"
-  move_existing_outputs "05_Risultati/tables" "sensitivity_summary_*.csv" "05_Risultati/tables/sensitivity"
+    05_Risultati/figures/entropy
 }
 
 trap cleanup EXIT
 
 prepare_output_layout
 
-echo "[1/9] Avvio servizi Docker..."
+echo "[1/6] Avvio servizi Docker..."
 docker compose -f "$COMPOSE_FILE" up -d fuseki
 
-echo "[2/9] Attesa Fuseki..."
+echo "[2/6] Attesa Fuseki..."
 until curl -fsS http://localhost:3030/\$/ping >/dev/null; do
   sleep 2
 done
 echo "[OK] Fuseki pronto"
 
-echo "[3/9] Generazione dataset sintetico + upload su Fuseki..."
+echo "[3/6] Generazione dataset sintetico + upload su Fuseki..."
 docker compose -f "$COMPOSE_FILE" run --rm pipeline python 01_Generazione_dati/generate_and_upload_synthetic_to_fuseki.py
 
-echo "[4/9] Calcolo sliding window + entropia..."
+echo "[4/6] Calcolo sliding window + entropia..."
 docker compose -f "$COMPOSE_FILE" run --rm pipeline python 03_Sliding_window/sliding_window.py
 
-echo "[5/9] Generazione grafici segnale..."
-docker compose -f "$COMPOSE_FILE" run --rm pipeline python 04_Analisi_grafici/plot_signal.py
-
-echo "[6/9] Generazione grafici entropia..."
+echo "[5/6] Generazione grafici entropia..."
 docker compose -f "$COMPOSE_FILE" run --rm pipeline python 04_Analisi_grafici/plot_entropy.py
 
-echo "[7/9] Generazione grafici baseline vs entropia..."
-docker compose -f "$COMPOSE_FILE" run --rm pipeline python 04_Analisi_grafici/plot_baseline_vs_entropy.py
+echo "[6/6] Estrazione risultati dei run..."
+docker compose -f "$COMPOSE_FILE" run --rm pipeline python 04_Analisi_grafici/export_run_results.py
 
-echo "[8/9] Generazione sensitivity analysis..."
-for metric in shannon sample permutation; do
-  echo "[INFO] Sensitivity metric: $metric"
-  docker compose -f "$COMPOSE_FILE" run --rm -e SENSITIVITY_METRIC="$metric" pipeline python 04_Analisi_grafici/plot_sensitivity.py
-done
-
-keep_only_entropy_figures
-
-echo "[9/9] Output generati:"
+echo "[OUTPUT] Output generati:"
 echo
 echo "[TABLES]"
 find 05_Risultati/tables -maxdepth 2 -type f | sort || true
