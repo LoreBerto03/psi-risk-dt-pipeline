@@ -8,8 +8,8 @@ The project generates three synthetic scenarios:
 - `C` abrupt shock (`shock`)
 
 and computes Shannon, Sample, and Permutation entropy over sliding windows (`C1..C5`) to produce:
-- final curated figures for thesis/Paper 3 (`results/figures/final/`)
-- publication-ready summary tables (`results/tables/final/`)
+- final curated figures for thesis/Paper 3 (`results/figures/final/`, generated locally and not tracked by Git)
+- publication-ready summary tables (`results/tables/final/`, generated locally and not tracked by Git)
 
 ## Prerequisites
 
@@ -47,6 +47,8 @@ This command runs the full flow:
 7. generate final curated figure package
 8. generate final results-ready table (`.csv` + `.tex`)
 
+Note: files under `results/figures/final/` and `results/tables/final/` are generated outputs and are intentionally not tracked by Git. After a fresh `git clone`, run `bash run_all.sh` to recreate them locally.
+
 ## Core Commands
 
 Full pipeline:
@@ -77,8 +79,8 @@ src/
   analysis/               plot and export scripts (figures and final tables)
 configs/                  central configuration + Docker/Fuseki utilities
 results/
-  figures/                generated plots (final deliverables tracked)
-  tables/                 generated tables (final deliverables tracked)
+  figures/                generated plots (including final deliverables, not tracked by Git)
+  tables/                 generated tables (including final deliverables, not tracked by Git)
 scripts/                  orchestration scripts (end-to-end run)
 docs/                     thesis/paper support documents
 docker/                   Dockerfile and docker-compose stack
@@ -104,3 +106,5 @@ After `bash run_all.sh`, the key deliverables are:
 - `results/figures/final/captions_and_notes.md`
 - `results/tables/final/results_ready_summary.csv`
 - `results/tables/final/results_ready_summary.tex`
+
+These files are generated locally by the pipeline and are not stored as tracked repository artifacts.

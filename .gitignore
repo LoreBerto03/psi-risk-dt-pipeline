@@ -54,16 +54,10 @@ results/*
 results/tables/*
 !results/tables/final/
 results/tables/final/*
-!results/tables/final/*.csv
-!results/tables/final/*.tex
 !results/figures/
 results/figures/*
 !results/figures/final/
 results/figures/final/*
-
-# Legacy output directory (kept ignored after refactor)
-05_Risultati/
-artifacts/
 
 # =========================
 # Generated seed / local import files
