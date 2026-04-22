@@ -51,6 +51,12 @@ htmlcov/
 # =========================
 05_Risultati/*
 !05_Risultati/experimental_results_section_paper4.md
+!05_Risultati/tables/
+05_Risultati/tables/*
+!05_Risultati/tables/final/
+05_Risultati/tables/final/*
+!05_Risultati/tables/final/*.csv
+!05_Risultati/tables/final/*.tex
 !05_Risultati/figures/
 05_Risultati/figures/*
 !05_Risultati/figures/final/

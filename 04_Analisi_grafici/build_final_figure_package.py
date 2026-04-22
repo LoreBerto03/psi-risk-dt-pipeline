@@ -360,7 +360,11 @@ def generate_comparison_figure(
     return output_file, build_caption(scenario, comparison_key), build_note(scenario, comparison_key)
 
 
-def write_captions_file(entries: list[dict]) -> None:
+def write_captions_file(entries: list[dict]) -> bool:
+    if CAPTIONS_FILE.exists():
+        print(f"[INFO] Captions file already present, keeping existing file: {CAPTIONS_FILE}")
+        return False
+
     lines = [
         "# Final Figure Package",
         "",
@@ -383,6 +387,7 @@ def write_captions_file(entries: list[dict]) -> None:
         )
 
     CAPTIONS_FILE.write_text("\n".join(lines), encoding="utf-8")
+    return True
 
 
 def main() -> None:
@@ -428,8 +433,9 @@ def main() -> None:
             )
             print(f"[OK] Saved final figure: {output_file}")
 
-    write_captions_file(entries)
-    print(f"[OK] Saved captions file: {CAPTIONS_FILE}")
+    captions_created = write_captions_file(entries)
+    if captions_created:
+        print(f"[OK] Saved captions file: {CAPTIONS_FILE}")
 
 
 if __name__ == "__main__":
