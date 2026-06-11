@@ -1,0 +1,54 @@
+Run Results Summary
+
+Rule: detection threshold tau = mean(stable |Delta H|) + 3 * std(stable |Delta H|)
+Drift interval: t=1000..2000
+Shock event start: t=1450
+
+Columns: configuration | scenario | metric | window | stride | detection_time | delay | false_positives | peak_intensity
+
+configuration scenario      metric  window  stride detection_time delay  false_pos peak_intensity
+           C1   Stable     Shannon     128       1            N/A   N/A         65       0.060870
+           C1   Stable      Sample     128       1            N/A   N/A         44       0.481177
+           C1   Stable Permutation     128       1            N/A   N/A         38       0.004424
+           C1    Drift     Shannon     128       1           1012    12         31       0.061926
+           C1    Drift      Sample     128       1           1075    75         24       0.693147
+           C1    Drift Permutation     128       1           1369   369          3       0.005594
+           C1    Shock     Shannon     128       1           1500    50         61       0.061144
+           C1    Shock      Sample     128       1           1602   152         29       0.429730
+           C1    Shock Permutation     128       1           1451     1         40       0.005943
+           C2   Stable     Shannon      64       1            N/A   N/A         82       0.107063
+           C2   Stable      Sample      64       1            N/A   N/A        122       1.280934
+           C2   Stable Permutation      64       1            N/A   N/A         41       0.014517
+           C2    Drift     Shannon      64       1           1036    36         34       0.109091
+           C2    Drift      Sample      64       1           1027    27         32       1.373049
+           C2    Drift Permutation      64       1           1047    47          5       0.015883
+           C2    Shock     Shannon      64       1           1456     6         52       0.108601
+           C2    Shock      Sample      64       1           1599   149         47       1.060872
+           C2    Shock Permutation      64       1           1455     5         32       0.032429
+           C3   Stable     Shannon     256       1            N/A   N/A         69       0.033929
+           C3   Stable      Sample     256       1            N/A   N/A         49       0.109597
+           C3   Stable Permutation     256       1            N/A   N/A         31       0.001425
+           C3    Drift     Shannon     256       1           1014    14         27       0.034885
+           C3    Drift      Sample     256       1           1030    30         17       0.155601
+           C3    Drift Permutation     256       1           1371   371          0       0.001709
+           C3    Shock     Shannon     256       1           1591   141        106       0.033544
+           C3    Shock      Sample     256       1           1660   210         19       0.122984
+           C3    Shock Permutation     256       1           1622   172         41       0.002003
+           C4   Stable     Shannon     128       4            N/A   N/A          9       0.085075
+           C4   Stable      Sample     128       4            N/A   N/A         11       0.632523
+           C4   Stable Permutation     128       4            N/A   N/A         10       0.010998
+           C4    Drift     Shannon     128       4           1120   120          1       0.095333
+           C4    Drift      Sample     128       4           1080    80          8       0.745107
+           C4    Drift Permutation     128       4           1372   372          3       0.011130
+           C4    Shock     Shannon     128       4           1456     6         22       0.182253
+           C4    Shock      Sample     128       4           1604   154          4       0.491249
+           C4    Shock Permutation     128       4           1460    10         19       0.009860
+           C5   Stable     Shannon     128       8            N/A   N/A          3       0.111599
+           C5   Stable      Sample     128       8            N/A   N/A          7       0.670674
+           C5   Stable Permutation     128       8            N/A   N/A          7       0.011916
+           C5    Drift     Shannon     128       8           1080    80          0       0.108411
+           C5    Drift      Sample     128       8           1080    80          4       1.111351
+           C5    Drift Permutation     128       8           1376   376          4       0.014342
+           C5    Shock     Shannon     128       8           1456     6         12       0.348823
+           C5    Shock      Sample     128       8           1608   158          3       0.600752
+           C5    Shock Permutation     128       8           1464    14          8       0.015550

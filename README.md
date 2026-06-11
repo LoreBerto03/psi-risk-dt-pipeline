@@ -8,8 +8,9 @@ The project generates three synthetic scenarios:
 - `C` abrupt shock (`shock`)
 
 and computes Shannon, Sample, and Permutation entropy over sliding windows (`C1..C5`) to produce:
-- final curated figures for thesis/Paper 3 (`results/figures/final/`, generated locally and not tracked by Git)
-- publication-ready summary tables (`results/tables/final/`, generated locally and not tracked by Git)
+- final curated figures for thesis/Paper 3 (`results/figures/final/`)
+- publication-ready summary tables (`results/tables/final/`)
+- supplementary GitHub material (`results/`): high-resolution figures, additional plots, source exports, and non-essential experimental outputs
 
 ## Prerequisites
 
@@ -47,7 +48,7 @@ This command runs the full flow:
 7. generate final curated figure package
 8. generate final results-ready table (`.csv` + `.tex`)
 
-Note: files under `results/figures/final/` and `results/tables/final/` are generated outputs and are intentionally not tracked by Git. After a fresh `git clone`, run `bash run_all.sh` to recreate them locally.
+Note: files under `results/` are versioned as supplementary thesis material on GitHub. After a fresh `git clone`, run `bash run_all.sh` to recreate or refresh them locally.
 
 ## Core Commands
 
@@ -79,8 +80,8 @@ src/
   analysis/               plot and export scripts (figures and final tables)
 configs/                  central configuration + Docker/Fuseki utilities
 results/
-  figures/                generated plots (including final deliverables, not tracked by Git)
-  tables/                 generated tables (including final deliverables, not tracked by Git)
+  figures/                high-resolution thesis figures and additional entropy plots
+  tables/                 source exports and experimental output tables
 scripts/                  orchestration scripts (end-to-end run)
 docs/                     thesis/paper support documents
 docker/                   Dockerfile and docker-compose stack
@@ -99,12 +100,16 @@ Main reproducibility controls are in [`configs/config.py`](configs/config.py):
 
 The pipeline is deterministic with fixed seed and centralized configuration.
 
-## Expected Final Outputs
+## GitHub Supplementary Material
 
-After `bash run_all.sh`, the key deliverables are:
+The thesis text contains the essential figures where they are discussed. This repository keeps the supplementary material requested for GitHub:
 - `results/figures/final/*.png`
+- `results/figures/entropy/*.png`
 - `results/figures/final/captions_and_notes.md`
+- `results/figures/run_results_summary.txt`
+- `results/tables/*.csv`
+- `results/tables/*.ttl`
 - `results/tables/final/results_ready_summary.csv`
 - `results/tables/final/results_ready_summary.tex`
 
-These files are generated locally by the pipeline and are not stored as tracked repository artifacts.
+See [`results/README.md`](results/README.md) for the full supplementary-material index.

@@ -47,17 +47,11 @@ htmlcov/
 *.pid
 
 # =========================
-# Generated project outputs
+# Supplementary project outputs
 # =========================
-results/*
-!results/tables/
-results/tables/*
-!results/tables/final/
-results/tables/final/*
-!results/figures/
-results/figures/*
-!results/figures/final/
-results/figures/final/*
+# Keep results/ versioned: GitHub hosts the supplementary material
+# for the thesis (high-resolution figures, additional plots, source
+# exports, and non-essential experimental outputs).
 
 # =========================
 # Generated seed / local import files
